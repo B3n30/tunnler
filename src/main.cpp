@@ -4,10 +4,23 @@
 //
 //
 #include <stdio.h>
+#include "BitStream.h"
+#include "messageIdentifiers.h"
 #include "pcapHandle.hpp"
-#include "wiredManager.hpp"
+#include "RakPeerInterface.h"
+#include "RakString.h"
+
+#define SERVER_PORT 60000
+#define MAX_CLIENTS 10
+#define SERVER_IP "127.0.0.1"
 
 const char* src_mac_address ="08:96:d7:e4:6a:9e";	//Fill in MAC of your device
+const bool isServer = true;
+
+enum GameMessages
+{
+	ID_GAME_MESSAGE_1=ID_USER_PACKET_ENUM+1
+};
 
 int main() {
 	pcapHandle* pcap_handle = new pcapHandle();
@@ -18,26 +31,83 @@ int main() {
 	pcap_handle->setFilter(filter_arg);
 	pcap_handle->setDumpFile("/tmp/capture.pcap");
 
-	wiredManager* wman = new wiredManager();
+	RakNet::RakPeerInterface *peer = RakNet::RakPeerInterface::GetInstance();
+
+	if(isServer) {
+		RakNet::SocketDescriptor sd(SERVER_PORT,0);
+		peer->Startup(MAX_CLIENTS, &sd, 1);
+		peer->SetMaximumIncomingConnections(MAX_CLIENTS);
+	} else {
+		RakNet::SocketDescriptor sd;
+		peer->Startup(1,&sd, 1);
+		peer->Connect(SERVER_IP, SERVER_PORT, 0,0);
+	}
 
 	printf("start tunnel\n");
-	for(int j=0; j<50; ++j) {
+	while(1) {
 		int length = pcap_handle->next();
-		printf("Got a %d byte packet\n", length);
-		if(length > 0) {
-			wman->send(pcap_handle->data, length);
-			pcap_handle->dump();
+		for (RakNet::Packet* packet=peer->Receive(); packet; peer->DeallocatePacket(packet), packet=peer->Receive())
+		{
+			switch (packet->data[0])
+				{
+				case ID_REMOTE_DISCONNECTION_NOTIFICATION:
+					printf("Another client has disconnected.\n");
+					break;
+				case ID_REMOTE_CONNECTION_LOST:
+					printf("Another client has lost the connection.\n");
+					break;
+				case ID_REMOTE_NEW_INCOMING_CONNECTION:
+					printf("Another client has connected.\n");
+					break;
+				case ID_CONNECTION_REQUEST_ACCEPTED:
+					{
+						printf("Our connection request has been accepted.\n");
+						if(length > 0) {
+							RakNet::BitStream bsOut;
+							bsOut.Write((RakNet::MessageID)ID_GAME_MESSAGE_1);
+							bsOut.Write(pcap_handle->data);
+							peer->Send(&bsOut,HIGH_PRIORITY,RELIABLE_ORDERED,0,packet->systemAddress,false);
+						}
+					}
+					break;
+				case ID_NEW_INCOMING_CONNECTION:
+					printf("A connection is incoming.\n");
+					break;
+				case ID_NO_FREE_INCOMING_CONNECTIONS:
+					printf("The server is full.\n");
+					break;
+				case ID_DISCONNECTION_NOTIFICATION:
+					if (isServer){
+						printf("A client has disconnected.\n");
+					} else {
+						printf("We have been disconnected.\n");
+					}
+					break;
+				case ID_CONNECTION_LOST:
+					if (isServer){
+						printf("A client lost the connection.\n");
+					} else {
+						printf("Connection lost.\n");
+					}
+					break;
+				case ID_GAME_MESSAGE_1:
+					{
+						RakNet::RakString rs;
+						RakNet::BitStream bsIn(packet->data,packet->length,false);
+						bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+						bsIn.Read(rs);
+						printf("%s\n", rs.C_String());
+						pcap_handle->send(reinterpret_cast<const unsigned char*>(rs.C_String()), sizeof(rs.C_String())/sizeof(char));
+						break;
+					}
+				default:
+					printf("Message with identifier %i has arrived.\n", packet->data[0]);
+					break;
+				}
 		}
-		if(wman->select()) {
-			while(!wman->data.empty()) {
-				pcap_handle->send(wman->data.begin()->first, wman->data.begin()->second);
-				wman->data.erase(wman->data.begin());
-			}
-
-		}
-
-
 	}
+	RakNet::RakPeerInterface::DestroyInstance(peer);
+	delete pcap_handle;
 	printf("done tunnel\n");
 
 }
