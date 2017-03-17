@@ -4,6 +4,7 @@
 //
 //
 #include <stdio.h>
+#include <deque>
 #include "BitStream.h"
 #include "messageIdentifiers.h"
 #include "pcapHandle.hpp"
@@ -23,9 +24,11 @@ enum GameMessages
 };
 
 int main() {
+	std::deque <u_char *>data_buffer;
+
 	pcapHandle* pcap_handle = new pcapHandle();
 	pcap_handle->activate();
-	
+
 	char filter_arg[100];
 	sprintf(filter_arg, "ether src %s", src_mac_address );
 	pcap_handle->setFilter(filter_arg);
@@ -45,7 +48,11 @@ int main() {
 
 	printf("start tunnel\n");
 	while(1) {
-		int length = pcap_handle->next();
+		if(int length = pcap_handle->next()) {
+			u_char* b = reinterpret_cast<u_char*>(malloc(length));
+			memcpy(b, pcap_handle->data, length);
+			data_buffer.push_back(b);
+		}
 		for (RakNet::Packet* packet=peer->Receive(); packet; peer->DeallocatePacket(packet), packet=peer->Receive())
 		{
 			switch (packet->data[0])
@@ -62,11 +69,12 @@ int main() {
 				case ID_CONNECTION_REQUEST_ACCEPTED:
 					{
 						printf("Our connection request has been accepted.\n");
-						if(length > 0) {
+						if(data_buffer.size()) {
 							RakNet::BitStream bsOut;
 							bsOut.Write((RakNet::MessageID)ID_GAME_MESSAGE_1);
-							bsOut.Write(pcap_handle->data);
+							bsOut.Write(data_buffer.front());
 							peer->Send(&bsOut,HIGH_PRIORITY,RELIABLE_ORDERED,0,packet->systemAddress,false);
+							data_buffer.pop_front();
 						}
 					}
 					break;
