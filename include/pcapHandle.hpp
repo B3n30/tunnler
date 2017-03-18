@@ -9,16 +9,18 @@
 
 #include <stdio.h>
 #include <pcap.h>
+
+#include <string>
 #include <vector>
 
 class pcapHandle{
 	public:		//should be private
-    char* m_device;
+    const char* m_device;
     pcap_t* m_pcap_handle;
     pcap_dumper_t* m_pdumper;
 
 	public:
-	pcapHandle();
+	pcapHandle(std::string deviceName = "");
 	~pcapHandle();
 	int activate();
 	int setFilter(const char* filter_arg);

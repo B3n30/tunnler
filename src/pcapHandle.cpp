@@ -3,17 +3,21 @@
 //  tunnler
 //
 //
+#include <assert.h>
 #include <stdio.h>
 #include "pcapHandle.hpp"
 
-pcapHandle::pcapHandle() {
+pcapHandle::pcapHandle(std::string deviceName) {
     char errbuf[PCAP_ERRBUF_SIZE];
 	int errNum;
-
-	m_device = pcap_lookupdev(errbuf);
-	if(m_device == NULL)
-		pcapFatal("pcap_lookupdev", errbuf);
-	printf("Device is %s\n", m_device);
+	if (deviceName == "") {
+		m_device = pcap_lookupdev(errbuf);
+		if(m_device == NULL)
+ 			pcapFatal("pcap_lookupdev", errbuf);
+		printf("Device is %s\n", m_device);
+	} else {
+		m_device = deviceName.c_str();
+	}
 
 	m_pcap_handle = pcap_create(m_device, errbuf);
 	if(m_pcap_handle == NULL)
@@ -89,11 +93,11 @@ void pcapHandle::dump() {
 
 void pcapHandle::pcapFatal(const char* failed_in, const char* errbuf) {
 	printf("Fatal Error in %s: %s\n", failed_in, errbuf);
-	throw 1;
+	assert(false);
 }
 
 
 void pcapHandle::pcapFatal(const char* failed_in, int errNum) {
 	printf("Fatal Error in %s: %d\n", failed_in, errNum);
-	throw 1;
+	assert(false);
 }
