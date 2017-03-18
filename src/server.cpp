@@ -15,6 +15,7 @@
 // ----------------------------------------------------------------------
 
 #include "MessageIdentifiers.h"
+#include "roomMesseges.hpp"
 
 #include "RakPeerInterface.h"
 #include "RakNetStatistics.h"
@@ -291,11 +292,21 @@ int main(int argc, char* argv[])
 				// terminated
 				printf("ID_CONNECTION_LOST from %s\n", p->systemAddress.ToString(true));;
 				break;
-
+			case ID_ROOM_CHAT: {
+				printf("Got chat message\n");
+				RakNet::BitStream bs(p->data, p->length, false);
+				server->Send(&bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0, p->systemAddress, true);
+				break;
+				}
+			case ID_ROOM_DATA:{
+				printf("Got data message\n");
+				RakNet::BitStream bs(p->data, p->length, false);
+				server->Send(&bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0, p->systemAddress, true);
+				break;
+				}
 			default:
 				// The server knows the static data of all clients, so we can prefix the message
 				// With the name data
-				printf("%s\n", p->data);
 
 				// Relay the message.  We prefix the name for other clients.  This demonstrates
 				// That messages can be changed on the server before being broadcast

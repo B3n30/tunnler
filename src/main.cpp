@@ -54,7 +54,6 @@ int main(int argc, char* argv[]) {
 
 		for(auto& p : room->getChat()) {
 			std::cout << p.c_str() << std::endl;
- 			std::cout << "Received chat!" << std::endl;
  		}
 		room->clearChat();
 	}

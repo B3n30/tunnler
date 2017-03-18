@@ -5,6 +5,7 @@
 //
 
 #include "room.hpp"
+#include "roomMesseges.hpp"
 
 #include "MessageIdentifiers.h"
 
@@ -12,6 +13,7 @@
 #include "RakNetTypes.h"
 #include "BitStream.h"
 #include "PacketLogger.h"
+#include "GetTime.h"
 #include <assert.h>
 #include <cstdio>
 #include <cstring>
@@ -30,13 +32,6 @@
 
 #include <iostream>
 #include <vector>
-
-enum RoomMessages
-{
-	ID_ROOM_CHAT = ID_USER_PACKET_ENUM + 1,
-	ID_ROOM_DATA = ID_USER_PACKET_ENUM + 2
-};
-
 
 unsigned char RoomMembership::GetPacketIdentifier(const RakNet::Packet *p) {
 	if (p == 0) {
@@ -102,12 +97,21 @@ void RoomMembership::join(std::string server, unsigned int serverPort, unsigned 
 }
 
 void RoomMembership::chat(std::string message) {
-  const char* data = message.c_str();
-  client->Send(data, (int) strlen(data) + 1, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+	const char* data = message.c_str();
+	RakNet::BitStream bs;
+	bs.Write((RakNet::MessageID)ID_ROOM_CHAT);
+	bs.Write((unsigned short)strlen(data));
+	bs.Write(data,strlen(data));
+	client->Send(&bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 }
 
 void RoomMembership::send(std::vector<unsigned char> data) {
-	client->Send(reinterpret_cast<char*>(data.data()), data.size()*sizeof(char), HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+	const char* c_data = reinterpret_cast<char*>(data.data());
+	RakNet::BitStream bs;
+	bs.Write((RakNet::MessageID)ID_ROOM_DATA);
+	bs.Write((unsigned short)strlen(c_data));
+	bs.Write(c_data,strlen(c_data));
+	client->Send(&bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 }
 
 void RoomMembership::leave(unsigned int index) {
@@ -276,7 +280,6 @@ void RoomMembership::update() {
 			bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 			bsIn.Read(rs);
 			chatQueue.push_back(rs.C_String());
-			printf("Got chat message\n");
 			break;
 		}
 	  case ID_ROOM_DATA: {
@@ -286,7 +289,6 @@ void RoomMembership::update() {
 		  bsIn.Read(rs);
 		  std::vector<uint8> data_buffer(rs.C_String(), rs.C_String() + rs.GetLength());
 		  dataQueue.push_back(data_buffer);
-		  printf("Got data message\n");
 		  break;
 	  }
 
