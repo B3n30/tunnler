@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  std::string devName = std::string(argv[1]);
+  std::string deviceName = std::string(argv[1]);
   std::string server = std::string(argv[2]);
   unsigned int serverPort = atoi(argv[3]);
 
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
 
   //FIXME: Use wifi device name from devName
 
-	pcapHandle* pcap_handle = new pcapHandle();
+	pcapHandle* pcap_handle = new pcapHandle(deviceName);
 	pcap_handle->activate();
 
 	char filter_arg[100];
