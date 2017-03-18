@@ -6,14 +6,18 @@
 #include <stdio.h>
 #include "pcapHandle.hpp"
 
-pcapHandle::pcapHandle() {
+pcapHandle::pcapHandle(std::string deviceName) {
     char errbuf[PCAP_ERRBUF_SIZE];
 	int errNum;
 
-	m_device = pcap_lookupdev(errbuf);
-	if(m_device == NULL)
-		pcapFatal("pcap_lookupdev", errbuf);
-	printf("Device is %s\n", m_device);
+  if (deviceName == "") {
+	  m_device = pcap_lookupdev(errbuf);
+	  if(m_device == NULL)
+		  pcapFatal("pcap_lookupdev", errbuf);
+	  printf("Device is %s\n", m_device);
+  } else {
+    m_device = deviceName.c_str();
+  }
 
 	m_pcap_handle = pcap_create(m_device, errbuf);
 	if(m_pcap_handle == NULL)
