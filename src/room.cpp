@@ -109,8 +109,8 @@ void RoomMembership::send(std::vector<unsigned char> data) {
 	const char* c_data = reinterpret_cast<char*>(data.data());
 	RakNet::BitStream bs;
 	bs.Write((RakNet::MessageID)ID_ROOM_DATA);
-	bs.Write((unsigned short)strlen(c_data));
-	bs.Write(c_data,strlen(c_data));
+	bs.Write(data.size());
+	bs.Write(c_data,data.size());
 	client->Send(&bs, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 }
 
@@ -283,11 +283,7 @@ void RoomMembership::update() {
 			break;
 		}
 	  case ID_ROOM_DATA: {
-		  RakNet::RakString rs;
-		  RakNet::BitStream bsIn(p->data, p->length, false);
-		  bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
-		  bsIn.Read(rs);
-		  std::vector<uint8> data_buffer(rs.C_String(), rs.C_String() + rs.GetLength());
+		  std::vector<uint8> data_buffer(p->data+sizeof(RakNet::MessageID)+8, p->data+p->length);
 		  dataQueue.push_back(data_buffer);
 		  break;
 	  }

@@ -47,7 +47,6 @@ int main(int argc, char* argv[]) {
 		room->update();
 
 		for(auto& p : room->getData()) {
-			std::cout << "Received data!" << std::endl;
 			pcap_handle->send(p.data(), p.size());
 		}
 		room->clearData();
