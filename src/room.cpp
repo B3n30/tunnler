@@ -43,22 +43,20 @@ void Room::ServerLoop() {
     while (state != State::Closed) {
         std::lock_guard<std::mutex> lock(server_mutex);
 
-        RakNet::Packet* packet = server->Receive();
-        if (!packet) {
-            continue;
-        }
+        RakNet::Packet* packet = nullptr;
+        while (packet = server->Receive()) {
+            switch (packet->data[0]) {
+            case ID_ROOM_WIFI_PACKET:
+                // Received a wifi packet, broadcast it to everyone else except the sender.
+                server->Send(reinterpret_cast<char*>(packet->data), packet->length,
+                             HIGH_PRIORITY, RELIABLE, 0, packet->systemAddress, true);
+                break;
+            default:
+                break;
+            }
 
-        switch (packet->data[0]) {
-        case ID_ROOM_WIFI_PACKET:
-            // Received a wifi packet, broadcast it to everyone else except the sender.
-            server->Send(reinterpret_cast<char*>(packet->data), packet->length,
-                         HIGH_PRIORITY, RELIABLE, 0, packet->systemAddress, true);
-            break;
-        default:
-            break;
+            server->DeallocatePacket(packet);
         }
-
-        server->DeallocatePacket(packet);
     }
 }
 

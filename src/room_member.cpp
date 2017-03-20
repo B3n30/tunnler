@@ -106,67 +106,65 @@ static void SendJoinRequest(RakNet::RakPeerInterface* peer, const std::string& n
 void RoomMember::ReceiveLoop() {
     // Receive packets while the connection is open
     while (IsConnected()) {
-        RakNet::Packet* packet = peer->Receive();
-        if (!packet) {
-            continue;
-        }
+        RakNet::Packet* packet = nullptr;
+        while (packet = peer->Receive()) {
+            switch (packet->data[0]) {
+            case ID_ROOM_CHAT:
+                //FIXME
+                break;
+            case ID_ROOM_WIFI_PACKET:
+                HandleWifiPackets(packet);
+                break;
+            case ID_ROOM_INFORMATION:
+                //FIXME: Update playerlist from packet
+                break;
+            case ID_ROOM_NAME_COLLISION:
+                state = State::NameCollision;
+                peer->Shutdown(300);
+                break;
+            case ID_ROOM_MAC_COLLISION:
+                state = State::MacCollision;
+                peer->Shutdown(300);
+                break;
+            case ID_ROOM_JOIN_SUCCESS:
+                // The join request was successful, we are now in the room.
+                // If we joined successfully, there must be at least one client in the room: us.
+                ASSERT_MSG(GetMemberInformation().size() > 0, "We have not yet received member information.");
+                state = State::Joined;
+                break;
+            case ID_DISCONNECTION_NOTIFICATION:
+                // Connection lost normally
+                state = State::Idle;
+                peer->Shutdown(300);
+                break;
+            case ID_INCOMPATIBLE_PROTOCOL_VERSION:
+                state = State::WrongVersion;
+                peer->Shutdown(300);
+                break;
+            case ID_CONNECTION_ATTEMPT_FAILED:
+                state = State::Error;
+                peer->Shutdown(300);
+                break;
+            case ID_NO_FREE_INCOMING_CONNECTIONS:
+                state = State::RoomFull;
+                peer->Shutdown(300);
+                break;
+            case ID_CONNECTION_LOST:
+                // Couldn't deliver a reliable packet, the other system was abnormally terminated
+                state = State::LostConnection;
+                peer->Shutdown(300);
+                break;
+            case ID_CONNECTION_REQUEST_ACCEPTED:
+                // Update the server address with the address of the sender of this packet.
+                server_address = packet->systemAddress;
+                // TODO(Subv): Send a room join request to the server before marking us as joined.
+                break;
+            default:
+                break;
+            }
 
-        switch (packet->data[0]) {
-        case ID_ROOM_CHAT:
-            //FIXME
-            break;
-        case ID_ROOM_WIFI_PACKET:
-            HandleWifiPackets(packet);
-            break;
-        case ID_ROOM_INFORMATION:
-            //FIXME: Update playerlist from packet
-            break;
-        case ID_ROOM_NAME_COLLISION:
-            state = State::NameCollision;
-            peer->Shutdown(300);
-            break;
-        case ID_ROOM_MAC_COLLISION:
-            state = State::MacCollision;
-            peer->Shutdown(300);
-            break;
-        case ID_ROOM_JOIN_SUCCESS:
-            // The join request was successful, we are now in the room.
-            // If we joined successfully, there must be at least one client in the room: us.
-            ASSERT_MSG(GetMemberInformation().size() > 0, "We have not yet received member information.");
-            state = State::Joined;
-            break;
-        case ID_DISCONNECTION_NOTIFICATION:
-            // Connection lost normally
-            state = State::Idle;
-            peer->Shutdown(300);
-            break;
-        case ID_INCOMPATIBLE_PROTOCOL_VERSION:
-            state = State::WrongVersion;
-            peer->Shutdown(300);
-            break;
-        case ID_CONNECTION_ATTEMPT_FAILED:
-            state = State::Error;
-            peer->Shutdown(300);
-            break;
-        case ID_NO_FREE_INCOMING_CONNECTIONS:
-            state = State::RoomFull;
-            peer->Shutdown(300);
-            break;
-        case ID_CONNECTION_LOST:
-            // Couldn't deliver a reliable packet, the other system was abnormally terminated
-            state = State::LostConnection;
-            peer->Shutdown(300);
-            break;
-        case ID_CONNECTION_REQUEST_ACCEPTED:
-            // Update the server address with the address of the sender of this packet.
-            server_address = packet->systemAddress;
-            // TODO(Subv): Send a room join request to the server before marking us as joined.
-            break;
-        default:
-            break;
+            peer->DeallocatePacket(packet);
         }
-
-        peer->DeallocatePacket(packet);
     }
 };
 
