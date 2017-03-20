@@ -106,6 +106,8 @@ static void SendJoinRequest(RakNet::RakPeerInterface* peer, const std::string& n
 void RoomMember::ReceiveLoop() {
     // Receive packets while the connection is open
     while (IsConnected()) {
+        std::lock_guard<std::mutex> lock(network_mutex);
+
         RakNet::Packet* packet = nullptr;
         while (packet = peer->Receive()) {
             switch (packet->data[0]) {
@@ -193,8 +195,12 @@ bool RoomMember::IsConnected() const {
 void RoomMember::Leave() {
     ASSERT_MSG(receive_thread != nullptr, "Must be in a room to leave it.");
 
-    peer->Shutdown(300);
-    state = State::Idle;
+    {
+        std::lock_guard<std::mutex> lock(network_mutex);
+        peer->Shutdown(300);
+        state = State::Idle;
+    }
 
     receive_thread->join();
+    receive_thread.reset();
 }

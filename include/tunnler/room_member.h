@@ -148,6 +148,8 @@ private:
 
     RakNet::SystemAddress server_address; ///< Address of the server we're connected to.
 
+    std::mutex network_mutex; ///< Mutex that controls access to the `peer` variable.
+
     /// Thread function that will receive and dispatch messages until connection is lost.
     void ReceiveLoop();
 };
