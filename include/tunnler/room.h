@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -47,7 +48,7 @@ public:
      */
     void Destroy();
 private:
-    State state; ///< Current state of the room.
+    std::atomic<State> state; ///< Current state of the room.
     RoomInformation room_information; ///< Information about this room.
     std::unique_ptr<std::thread> room_thread; ///< Thread that receives and dispatches network packets
 

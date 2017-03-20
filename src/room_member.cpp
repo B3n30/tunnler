@@ -23,7 +23,7 @@ RoomMember::RoomMember() {
 }
 
 RoomMember::~RoomMember() {
-    ASSERT_MSG(!IsConnected(), "RoomMeber is being destroyed while connected");
+    ASSERT_MSG(!IsConnected(), "RoomMember is being destroyed while connected");
     if (receive_thread) {
         receive_thread->join();
     }
@@ -161,7 +161,6 @@ void RoomMember::ReceiveLoop() {
             // Update the server address with the address of the sender of this packet.
             server_address = packet->systemAddress;
             // TODO(Subv): Send a room join request to the server before marking us as joined.
-            state = State::Joined;
             break;
         default:
             break;

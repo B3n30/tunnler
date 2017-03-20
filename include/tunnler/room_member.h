@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -121,7 +122,7 @@ public:
     void Leave();
 
 private:
-    State state; ///< Current state of the RoomMember.
+    std::atomic<State> state; ///< Current state of the RoomMember.
     MemberList member_information; ///< Information about the clients connected to the same room as us.
     RoomInformation room_information; ///< Information about the room we're connected to.
 
