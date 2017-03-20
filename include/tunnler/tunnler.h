@@ -6,6 +6,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 using MacAddress = std::array<uint8_t, 6>;

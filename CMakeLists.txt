@@ -1,19 +1,25 @@
 cmake_minimum_required (VERSION 2.6)
-project (tunnler  C CXX)
+project (tunnler CXX)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
-find_package (PCAP REQUIRED)
-
-set(RAKNET_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/externals/rakNet")
+set(RAKNET_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/externals/RakNet")
 include_directories(${RAKNET_PREFIX}/source)
+
 add_subdirectory(${RAKNET_PREFIX})
 
-include_directories("${PROJECT_SOURCE_DIR}/include" $PCAP_INCLUDE_DIR)
+include_directories("${PROJECT_SOURCE_DIR}/include" ${RAKNET_INCLUDE_DIR}/raknet)
 
-add_executable(tunnler src/main.cpp src/pcapHandle.cpp src/room.cpp)
-set_target_properties(tunnler PROPERTIES LINKER_LANGUAGE CXX)
+set(SRCS
+    src/room.cpp
+    src/room_member.cpp
+    )
 
-target_link_libraries (tunnler RakNetLibStatic ${PCAP_LIBRARY})
+set(HEADERS
+    include/tunnler/room.h
+    include/tunnler/room_member.h
+    include/tunnler/room_message_types.h
+    include/tunnler/tunnler.h
+    )
 
-add_executable(tunnler_server src/server.cpp)
-target_link_libraries (tunnler_server RakNetLibStatic)
+add_library(tunnler STATIC ${SRCS} ${HEADERS})
+#add_executable(tunnler ${SRCS} ${HEADERS})
+target_link_libraries(tunnler RakNetLibStatic)
