@@ -28,7 +28,7 @@ public:
     ~Room() { }
 
     /**
-     * Gets the current status of the room.
+     * Gets the current state of the room.
      */
     State GetState() const { return state; };
 

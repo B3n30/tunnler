@@ -29,8 +29,9 @@ void Room::Destroy() {
     {
         std::lock_guard<std::mutex> lock(server_mutex);
 
-        if (server)
+        if (server) {
             RakNet::RakPeerInterface::DestroyInstance(server);
+        }
         server = nullptr;
     }
 
@@ -42,14 +43,17 @@ void Room::ServerLoop() {
         std::lock_guard<std::mutex> lock(server_mutex);
 
         RakNet::Packet* packet = server->Receive();
-        if (!packet)
+        if (!packet) {
             continue;
+        }
 
         switch (packet->data[0]) {
         case ID_ROOM_WIFI_PACKET:
             // Received a wifi packet, broadcast it to everyone else except the sender.
             server->Send(reinterpret_cast<char*>(packet->data), packet->length,
-                         HIGH_PRIORITY, RELIABLE_ORDERED, 0, packet->systemAddress, true);
+                         HIGH_PRIORITY, RELIABLE, 0, packet->systemAddress, true);
+            break;
+        default:
             break;
         }
 

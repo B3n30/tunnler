@@ -140,10 +140,10 @@ private:
     // cause an overflow in UDS::RecvBeaconBroadcastData.
     static const size_t MaxBeaconQueueSize = 25;
 
-    std::deque<ChatEntry> chat_queue;    ///< List of all chat messages recieved since last PopChatEntries was called
-    std::deque<WifiPacket> data_queue;   ///< List of all recieve 802.11 frames with type Data
+    std::deque<ChatEntry> chat_queue;    ///< List of all chat messages received since last PopChatEntries was called
+    std::deque<WifiPacket> data_queue;   ///< List of all received 802.11 frames with type `Data`
     std::mutex beacon_mutex;             ///< Mutex to protect access to the beacons queue.
-    std::deque<WifiPacket> beacon_queue; ///< List of all recieve 802.11 frames with type Beacon
+    std::deque<WifiPacket> beacon_queue; ///< List of all received 802.11 frames with type `Beacon`
 
     RakNet::SystemAddress server_address; ///< Address of the server we're connected to.
 

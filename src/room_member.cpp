@@ -23,8 +23,9 @@ RoomMember::RoomMember() {
 }
 
 RoomMember::~RoomMember() {
-    if (receive_thread)
+    if (receive_thread) {
         receive_thread->join();
+    }
     RakNet::RakPeerInterface::DestroyInstance(peer);
 }
 
@@ -58,8 +59,9 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
         beacon_queue.emplace_back(std::move(wifi_packet));
 
         // If we have more than the max number of buffered beacons, discard the oldest one
-        if (beacon_queue.size() > MaxBeaconQueueSize)
+        if (beacon_queue.size() > MaxBeaconQueueSize) {
             beacon_queue.pop_front();
+        }
     } else {
         // TODO(Subv): Add to ringbuffer for data / non-beacons
     }
@@ -87,7 +89,7 @@ void RoomMember::SendWifiPacket(WifiPacket& wifi_packet) {
     stream.Write(static_cast<uint32_t>(wifi_packet.data.size()));
     stream.Write(reinterpret_cast<char*>(wifi_packet.data.data()), wifi_packet.data.size());
 
-    peer->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, server_address, false);
+    peer->Send(&stream, HIGH_PRIORITY, RELIABLE, 0, server_address, false);
 }
 
 /**
@@ -103,8 +105,9 @@ void RoomMember::ReceiveLoop() {
     // Receive packets while the connection is open
     while (IsConnected()) {
         RakNet::Packet* packet = peer->Receive();
-        if (!packet)
+        if (!packet) {
             continue;
+        }
 
         switch (packet->data[0]) {
         case ID_ROOM_CHAT:
