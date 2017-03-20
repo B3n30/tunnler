@@ -30,6 +30,7 @@ void Room::Destroy() {
         std::lock_guard<std::mutex> lock(server_mutex);
 
         if (server) {
+            server->Shutdown(300);
             RakNet::RakPeerInterface::DestroyInstance(server);
         }
         server = nullptr;

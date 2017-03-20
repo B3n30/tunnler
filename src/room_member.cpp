@@ -23,9 +23,11 @@ RoomMember::RoomMember() {
 }
 
 RoomMember::~RoomMember() {
+    ASSERT_MSG(!IsConnected(), "RoomMeber is being destroyed while connected");
     if (receive_thread) {
         receive_thread->join();
     }
+    peer->Shutdown(300);
     RakNet::RakPeerInterface::DestroyInstance(peer);
 }
 
@@ -121,11 +123,11 @@ void RoomMember::ReceiveLoop() {
             break;
         case ID_ROOM_NAME_COLLISION:
             state = State::NameCollision;
-            peer->CloseConnection(server_address, true);
+            peer->Shutdown(300);
             break;
         case ID_ROOM_MAC_COLLISION:
             state = State::MacCollision;
-            peer->CloseConnection(server_address, true);
+            peer->Shutdown(300);
             break;
         case ID_ROOM_JOIN_SUCCESS:
             // The join request was successful, we are now in the room.
@@ -136,22 +138,24 @@ void RoomMember::ReceiveLoop() {
         case ID_DISCONNECTION_NOTIFICATION:
             // Connection lost normally
             state = State::Idle;
-            peer->CloseConnection(server_address, true);
-            return;
+            peer->Shutdown(300);
+            break;
         case ID_INCOMPATIBLE_PROTOCOL_VERSION:
             state = State::WrongVersion;
-            peer->CloseConnection(server_address, true);
+            peer->Shutdown(300);
             break;
         case ID_CONNECTION_ATTEMPT_FAILED:
             state = State::Error;
+            peer->Shutdown(300);
             break;
         case ID_NO_FREE_INCOMING_CONNECTIONS:
             state = State::RoomFull;
-            peer->CloseConnection(server_address, true);
+            peer->Shutdown(300);
             break;
         case ID_CONNECTION_LOST:
             // Couldn't deliver a reliable packet, the other system was abnormally terminated
             state = State::LostConnection;
+            peer->Shutdown(300);
             break;
         case ID_CONNECTION_REQUEST_ACCEPTED:
             // Update the server address with the address of the sender of this packet.
@@ -192,7 +196,7 @@ bool RoomMember::IsConnected() const {
 void RoomMember::Leave() {
     ASSERT_MSG(receive_thread != nullptr, "Must be in a room to leave it.");
 
-    peer->CloseConnection(server_address, true);
+    peer->Shutdown(300);
     state = State::Idle;
 
     receive_thread->join();
