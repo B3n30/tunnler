@@ -10,6 +10,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "tunnler/tunnler.h"
 
@@ -24,6 +25,14 @@ public:
         Open,   // The room is open and ready to accept connections.
         Closed, // The room is not opened and can not accept connections.
     };
+
+    struct Member {
+        std::string nickname; ///< The nickname of the member.
+        MacAddress mac_address; ///< The assigned mac address of the member.
+        RakNet::AddressOrGUID network_address; ///< The network address of the remote peer.
+    };
+
+    using MemberList = std::vector<Member>;
 
     Room() { }
     ~Room() { }
@@ -50,6 +59,7 @@ public:
 private:
     std::atomic<State> state; ///< Current state of the room.
     RoomInformation room_information; ///< Information about this room.
+    MemberList members; ///< Information about the members of this room.
     std::unique_ptr<std::thread> room_thread; ///< Thread that receives and dispatches network packets
 
     RakNet::RakPeerInterface* server = nullptr; ///< RakNet network interface.
@@ -58,4 +68,54 @@ private:
 
     /// Thread function that will receive and dispatch messages until the room is destroyed.
     void ServerLoop();
+
+    /**
+     * Parses and answers a room join request from a client.
+     * Validates the uniqueness of the username and assigns the MAC address
+     * that the client will use for the remainder of the connection.
+     */
+    void HandleJoinRequest(const RakNet::Packet* packet);
+
+    /**
+     * Sends the information about the room, along with the list of members
+     * to every connected client in the room.
+     */
+    void BroadcastRoomInformation();
+
+    /**
+     * Returns whether the nickname is valid, ie. isn't already taken by someone else in the room.
+     */
+    bool IsValidNickname(const std::string& nickname);
+
+    /**
+     * Returns whether the MAC address is valid, ie. isn't already taken by someone else in the room.
+     */
+    bool IsValidMacAddress(const MacAddress& address);
+
+    /**
+     * Generates a free MAC address to assign to a new client.
+     */
+    MacAddress GenerateMacAddress();
+
+    /**
+     * Sends a ID_ROOM_NAME_COLLISION message telling the client that the name is invalid.
+     */
+    void SendNameCollision(RakNet::AddressOrGUID client);
+
+    /**
+     * Sends a ID_ROOM_MAC_COLLISION message telling the client that the MAC is invalid.
+     */
+    void SendMacCollision(RakNet::AddressOrGUID client);
+
+    /**
+     * Removes the client from the members list if it was in it and announces the change
+     * to all other clients.
+     */
+    void HandleClientDisconnection(RakNet::AddressOrGUID client);
+
+    /**
+     * Notifies the member that its connection attempt was successful,
+     * and it is now part of the room.
+     */
+    void SendJoinSuccess(const Member& member);
 };

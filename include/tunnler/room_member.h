@@ -97,7 +97,7 @@ public:
      * Sends a WiFi packet to the room.
      * @param packet The WiFi packet to send.
      */
-    void SendWifiPacket(WifiPacket& packet);
+    void SendWifiPacket(const WifiPacket& packet);
 
     /**
      * Returns a string with informations about the connection
@@ -127,6 +127,8 @@ private:
     RoomInformation room_information; ///< Information about the room we're connected to.
 
     RakNet::RakPeerInterface* peer; ///< RakNet network interface.
+
+    std::string nickname; ///< The nickname of this member.
 
     /**
      * Extracts a WifiPacket from a received RakNet packet and adds it to the proper queue.

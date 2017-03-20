@@ -2,8 +2,8 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#include <thread>
 #include <mutex>
+#include <thread>
 
 #include "tunnler/tunnler.h"
 #include "tunnler/room.h"
@@ -14,9 +14,6 @@
 
 #include "BitStream.h"
 #include "RakNetTypes.h"
-
-/// A special MAC address that tells the room we're joining to assign us a MAC address automatically.
-static const MacAddress NoPreferredMac = { 0, 0, 0, 0, 0, 0 };
 
 RoomMember::RoomMember() {
     peer = RakNet::RakPeerInterface::GetInstance();
@@ -80,7 +77,7 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
     }
 }
 
-void RoomMember::SendWifiPacket(WifiPacket& wifi_packet) {
+void RoomMember::SendWifiPacket(const WifiPacket& wifi_packet) {
     RakNet::BitStream stream;
 
     stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_WIFI_PACKET));
@@ -89,7 +86,7 @@ void RoomMember::SendWifiPacket(WifiPacket& wifi_packet) {
     stream.Write(wifi_packet.transmitter_address);
     stream.Write(wifi_packet.destination_address);
     stream.Write(static_cast<uint32_t>(wifi_packet.data.size()));
-    stream.Write(reinterpret_cast<char*>(wifi_packet.data.data()), wifi_packet.data.size());
+    stream.Write((char*)wifi_packet.data.data(), wifi_packet.data.size());
 
     peer->Send(&stream, HIGH_PRIORITY, RELIABLE, 0, server_address, false);
 }
@@ -100,7 +97,14 @@ void RoomMember::SendWifiPacket(WifiPacket& wifi_packet) {
  * @params preferred_mac The preferred MAC address to use in the room, an all-zero MAC address tells the server to assign one for us.
  */
 static void SendJoinRequest(RakNet::RakPeerInterface* peer, const std::string& nickname, const MacAddress& preferred_mac = NoPreferredMac) {
-    // TODO(Subv): Implement.
+    RakNet::BitStream stream;
+
+    RakNet::RakString nick = nickname.c_str();
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_JOIN_REQUEST));
+    stream.Write(nick);
+    stream.Write(preferred_mac);
+
+    peer->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 }
 
 void RoomMember::ReceiveLoop() {
@@ -159,7 +163,7 @@ void RoomMember::ReceiveLoop() {
             case ID_CONNECTION_REQUEST_ACCEPTED:
                 // Update the server address with the address of the sender of this packet.
                 server_address = packet->systemAddress;
-                // TODO(Subv): Send a room join request to the server before marking us as joined.
+                SendJoinRequest(peer, nickname);
                 break;
             default:
                 break;
@@ -181,7 +185,7 @@ void RoomMember::Join(const std::string& nickname, const std::string& server, ui
         return;
     }
 
-    // TODO(Subv): Keep track of the desired nickname
+    this->nickname = nickname;
     state = State::Joining;
 
     // Start a network thread to Receive packets in a loop.
