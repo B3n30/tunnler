@@ -64,8 +64,6 @@ private:
 
     RakNet::RakPeerInterface* server = nullptr; ///< RakNet network interface.
 
-    std::mutex server_mutex; ///< Mutex that controls access to the `server` variable.
-
     /// Thread function that will receive and dispatch messages until the room is destroyed.
     void ServerLoop();
 

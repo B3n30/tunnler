@@ -26,18 +26,13 @@ void Room::Create(const std::string& name, const std::string& server_address, ui
 
 void Room::Destroy() {
     state = State::Closed;
-
-    {
-        std::lock_guard<std::mutex> lock(server_mutex);
-
-        if (server) {
-            server->Shutdown(300);
-            RakNet::RakPeerInterface::DestroyInstance(server);
-        }
-        server = nullptr;
-    }
-
     room_thread->join();
+
+    if (server) {
+        server->Shutdown(300);
+        RakNet::RakPeerInterface::DestroyInstance(server);
+    }
+    server = nullptr;
 }
 
 void Room::HandleJoinRequest(const RakNet::Packet* packet) {
@@ -85,8 +80,6 @@ void Room::HandleJoinRequest(const RakNet::Packet* packet) {
 
 void Room::ServerLoop() {
     while (state != State::Closed) {
-        std::lock_guard<std::mutex> lock(server_mutex);
-
         RakNet::Packet* packet = nullptr;
         while (packet = server->Receive()) {
             switch (packet->data[0]) {
