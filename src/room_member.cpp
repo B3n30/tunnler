@@ -29,6 +29,16 @@ RoomMember::~RoomMember() {
 }
 
 void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
+    WifiPacket wifi_packet{};
+    
+    auto EmplaceBackAndCheckSize = [&](std::deque<WifiPacket>* queue, size_t maxSize) {
+        queue->emplace_back(std::move(wifi_packet));
+        // If we have more than the max number of buffered packets, discard the oldest one
+        if (queue->size() > maxSize) {
+            queue->pop_front();
+        }
+    };
+
     RakNet::BitStream stream(packet->data, packet->length, false);
 
     // Ignore the first byte, which is the message id.
@@ -39,7 +49,6 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
     stream.Read(frame_type);
     WifiPacket::PacketType type = static_cast<WifiPacket::PacketType>(frame_type);
 
-    WifiPacket wifi_packet{};
     wifi_packet.type = type;
     stream.Read(wifi_packet.channel);
     stream.Read(wifi_packet.transmitter_address);
@@ -56,26 +65,16 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
     if (type == WifiPacket::PacketType::Beacon) {
         std::lock_guard<std::mutex> lock(beacon_mutex);
         beacon_queue.emplace_back(std::move(wifi_packet));
-
-        // If we have more than the max number of buffered beacons, discard the oldest one
-        if (beacon_queue.size() > MaxBeaconQueueSize) {
-            beacon_queue.pop_front();
-        }
+        EmplaceBackAndCheckSize(&beacon_queue, MaxBeaconQueueSize);
     } else {  // For now we will treat all non-beacons as data packets
         std::lock_guard<std::mutex> lock(data_mutex);
-        data_queue.emplace_back(std::move(wifi_packet));
-
-        // If we have more than the max number of buffered data packets, discard the oldest one
-        if (data_queue.size() > MaxDataQueueSize) {
-            data_queue.pop_front();
-        }
-
+        EmplaceBackAndCheckSize(&data_queue, MaxDataQueueSize);
     }
 }
 
 
 std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, const MacAddress& mac_address) {
-    auto FilterAndPopPackets = [=](std::deque<WifiPacket>* source_queue) {
+    auto FilterAndPopPackets = [&](std::deque<WifiPacket>* source_queue) {
         std::deque<WifiPacket> result_queue;
         if(mac_address == NoPreferredMac) {         // Don't apply an address filter
             result_queue = std::move(*source_queue);
@@ -85,7 +84,7 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
                 if(it->transmitter_address == mac_address) {
                     result_queue.emplace_back(std::move(*it));
                     it = source_queue->erase(it);
-                }else {
+                } else {
                     ++it;
                 }
             }
