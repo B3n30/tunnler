@@ -61,8 +61,15 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
         if (beacon_queue.size() > MaxBeaconQueueSize) {
             beacon_queue.pop_front();
         }
-    } else {
-        // TODO(Subv): Add to ringbuffer for data / non-beacons
+    } else {  // For now we will treat all non-beacons as data packets
+        std::lock_guard<std::mutex> lock(data_mutex);
+        data_queue.emplace_back(std::move(wifi_packet));
+
+        // If we have more than the max number of buffered data packets, discard the oldest one
+        if (data_queue.size() > MaxDataQueueSize) {
+            data_queue.pop_front();
+        }
+
     }
 }
 
@@ -113,8 +120,23 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
             }
         }
         return result_queue;
-    } else {
-        return {};
+    } else {  // For now we will treat all non-beacons as data packets
+        std::lock_guard<std::mutex> lock(data_mutex);
+        std::deque<WifiPacket> result_queue;
+        if(mac_address == NoPreferredMac) {         // Don't apply an address filter
+            result_queue = std::move(data_queue);
+            data_queue.clear();
+        } else {                                    // Apply the address filter
+            for(auto it = data_queue.begin(); it != data_queue.end();) {
+                if(it->transmitter_address == mac_address) {
+                    result_queue.emplace_back(std::move(*it));
+                    it = data_queue.erase(it);
+                }else {
+                    ++it;
+                }
+            }
+        }
+        return result_queue;
     }
 }
 
