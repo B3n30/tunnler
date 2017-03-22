@@ -4,12 +4,11 @@ project (tunnler CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(RAKNET_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/externals/RakNet")
-include_directories(${RAKNET_PREFIX}/source)
-
+set(RAKNET_PREFIX "${PROJECT_SOURCE_DIR}/externals/RakNet")
+include_directories(${RAKNET_PREFIX}/Source)
 add_subdirectory(${RAKNET_PREFIX})
 
-include_directories("${PROJECT_SOURCE_DIR}/include" ${RAKNET_INCLUDE_DIR}/raknet)
+include_directories("${PROJECT_SOURCE_DIR}/include")
 
 set(SRCS
     src/room.cpp
@@ -24,5 +23,4 @@ set(HEADERS
     )
 
 add_library(tunnler STATIC ${SRCS} ${HEADERS})
-#add_executable(tunnler ${SRCS} ${HEADERS})
 target_link_libraries(tunnler RakNetLibStatic)
