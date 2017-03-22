@@ -1,0 +1,180 @@
+// Copyright 2017 Tunnler Project
+// Licensed under GPLv2 or any later version
+// Refer to the license.txt file included.
+
+#include "tunnler/room.h"
+#include "tunnler/room_message_types.h"
+
+#include "BitStream.h"
+
+/// Maximum number of concurrent connections allowed to this room.
+static const uint32_t MaxConcurrentConnections = 10;
+
+void Room::Create(const std::string& name, const std::string& server_address, uint16_t server_port) {
+    RakNet::SocketDescriptor socket(server_port, server_address.c_str());
+
+    server = RakNet::RakPeerInterface::GetInstance();
+    // TODO(Subv): Allow specifying the maximum number of concurrent connections.
+    server->Startup(MaxConcurrentConnections, &socket, 1);
+    server->SetMaximumIncomingConnections(MaxConcurrentConnections);
+
+    state = State::Open;
+
+    // Start a network thread to Receive packets in a loop.
+    room_thread = std::make_unique<std::thread>(&Room::ServerLoop, this);
+}
+
+void Room::Destroy() {
+    state = State::Closed;
+    room_thread->join();
+
+    if (server) {
+        server->Shutdown(300);
+        RakNet::RakPeerInterface::DestroyInstance(server);
+    }
+    server = nullptr;
+}
+
+void Room::HandleJoinRequest(const RakNet::Packet* packet) {
+    RakNet::BitStream stream(packet->data, packet->length, false);
+
+    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+
+    RakNet::RakString nick;
+    stream.Read(nick);
+
+    MacAddress preferred_mac;
+    stream.Read(preferred_mac);
+
+    // Verify if the nick is already taken.
+    const std::string nickname(nick.C_String(), nick.GetLength());
+    if (!IsValidNickname(nickname)) {
+        SendNameCollision(packet->systemAddress);
+        return;
+    }
+
+    if (preferred_mac != NoPreferredMac) {
+        // Verify if the preferred mac is available
+        if (!IsValidMacAddress(preferred_mac)) {
+            SendMacCollision(packet->systemAddress);
+            return;
+        }
+    } else {
+        // Assign a MAC address of this client automatically
+        preferred_mac = GenerateMacAddress();
+    }
+
+    // At this point the client is ready to be added to the room.
+    Member member{};
+    member.mac_address = preferred_mac;
+    member.nickname = nickname;
+    member.network_address = packet->systemAddress;
+
+    members.push_back(member);
+
+    // Notify everyone that the room information has changed.
+    BroadcastRoomInformation();
+
+    SendJoinSuccess(member);
+}
+
+void Room::ServerLoop() {
+    while (state != State::Closed) {
+        RakNet::Packet* packet = nullptr;
+        while (packet = server->Receive()) {
+            switch (packet->data[0]) {
+            case ID_ROOM_JOIN_REQUEST:
+                // Someone is trying to join the room.
+                HandleJoinRequest(packet);
+                break;
+            case ID_DISCONNECTION_NOTIFICATION:
+            case ID_CONNECTION_LOST:
+                // A client has disconnected, remove them from the members list if they had joined the room.
+                HandleClientDisconnection(packet->systemAddress);
+                break;
+            case ID_ROOM_WIFI_PACKET:
+                // Received a wifi packet, broadcast it to everyone else except the sender.
+                // TODO(Subv): Maybe change this to a loop over `members`, since we only want to
+                // send this data to the people who have actually joined the room.
+                server->Send(reinterpret_cast<char*>(packet->data), packet->length,
+                             HIGH_PRIORITY, RELIABLE, 0, packet->systemAddress, true);
+                break;
+            default:
+                break;
+            }
+
+            server->DeallocatePacket(packet);
+        }
+    }
+}
+
+bool Room::IsValidNickname(const std::string& nickname) {
+    // A nickname is valid if it is not already taken by anybody else in the room.
+    // TODO(Subv): Check for spaces in the name.
+
+    for (const Member& member : members) {
+        if (member.nickname == nickname) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Room::IsValidMacAddress(const MacAddress& address) {
+    // A MAC address is valid if it is not already taken by anybody else in the room.
+
+    for (const Member& member : members) {
+        if (member.mac_address == address) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void Room::SendNameCollision(RakNet::AddressOrGUID client) {
+    RakNet::BitStream stream;
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_NAME_COLLISION));
+
+    server->Send(&stream, HIGH_PRIORITY, RELIABLE, 0, client, false);
+}
+
+void Room::SendMacCollision(RakNet::AddressOrGUID client) {
+    RakNet::BitStream stream;
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_MAC_COLLISION));
+
+    server->Send(&stream, HIGH_PRIORITY, RELIABLE, 0, client, false);
+}
+
+void Room::HandleClientDisconnection(RakNet::AddressOrGUID client) {
+    // Remove the client from the members list.
+    members.erase(std::remove_if(members.begin(), members.end(), [&](const Member& member) {
+        return member.network_address == client;
+    }), members.end());
+
+    // Announce the change to all other clients.
+    BroadcastRoomInformation();
+}
+
+void Room::SendJoinSuccess(const Member& member) {
+    RakNet::BitStream stream;
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_JOIN_SUCCESS));
+    stream.Write(member.mac_address);
+
+    server->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, member.network_address, false);
+}
+
+void Room::BroadcastRoomInformation() {
+    RakNet::BitStream stream;
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_JOIN_SUCCESS));
+
+    // TODO(Subv): Add the room and member information to the packet.
+
+    server->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+}
+
+MacAddress Room::GenerateMacAddress() {
+    // TODO(Subv): Generate a random mac address here.
+    return {};
+}

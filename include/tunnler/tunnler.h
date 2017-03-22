@@ -6,9 +6,14 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <vector>
+#include <string>
 
 using MacAddress = std::array<uint8_t, 6>;
+
+/// A special MAC address that tells the room we're joining to assign us a MAC address automatically.
+const MacAddress NoPreferredMac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /// Information about the received WiFi packets.
 /// Acts as our own 802.11 header.
