@@ -73,41 +73,32 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
     }
 }
 
+
 std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, const MacAddress& mac_address) {
+    auto FilterAndPopPackets = [=](std::deque<WifiPacket>* source_queue) {
+        std::deque<WifiPacket> result_queue;
+        if(mac_address == NoPreferredMac) {         // Don't apply an address filter
+            result_queue = std::move(*source_queue);
+            source_queue->clear();
+        } else {                                    // Apply the address filter
+            for(auto it = source_queue->begin(); it != source_queue->end();) {
+                if(it->transmitter_address == mac_address) {
+                    result_queue.emplace_back(std::move(*it));
+                    it = source_queue->erase(it);
+                }else {
+                    ++it;
+                }
+            }
+        }
+        return result_queue;
+    };
+
     if (type == WifiPacket::PacketType::Beacon) {
         std::lock_guard<std::mutex> lock(beacon_mutex);
-        std::deque<WifiPacket> result_queue;
-        if(mac_address == NoPreferredMac) {         // Don't apply an address filter
-            result_queue = std::move(beacon_queue);
-            beacon_queue.clear();
-        } else {                                    // Apply the address filter
-            for(auto it = beacon_queue.begin(); it != beacon_queue.end();) {
-                if(it->transmitter_address == mac_address) {
-                    result_queue.emplace_back(std::move(*it));
-                    it = beacon_queue.erase(it);
-                }else {
-                    ++it;
-                }
-            }
-        }
-        return result_queue;
+        return FilterAndPopPackets(&beacon_queue);
     } else {  // For now we will treat all non-beacons as data packets
         std::lock_guard<std::mutex> lock(data_mutex);
-        std::deque<WifiPacket> result_queue;
-        if(mac_address == NoPreferredMac) {         // Don't apply an address filter
-            result_queue = std::move(data_queue);
-            data_queue.clear();
-        } else {                                    // Apply the address filter
-            for(auto it = data_queue.begin(); it != data_queue.end();) {
-                if(it->transmitter_address == mac_address) {
-                    result_queue.emplace_back(std::move(*it));
-                    it = data_queue.erase(it);
-                }else {
-                    ++it;
-                }
-            }
-        }
-        return result_queue;
+        return FilterAndPopPackets(&data_queue);
     }
 }
 
