@@ -138,12 +138,17 @@ private:
 
     std::unique_ptr<std::thread> receive_thread; ///< Thread that receives and dispatches network packets
 
+    /// Max size of the data queue before the oldest entry is expunged.
+    /// TODO(Ben): Find a good value for this
+    static const size_t MaxDataQueueSize = 100;
+
     /// Max size of the beacon queue before the oldest entry is expunged.
     /// This number was empirically calculated, keeping too many frames will
     // cause an overflow in UDS::RecvBeaconBroadcastData.
     static const size_t MaxBeaconQueueSize = 25;
 
     std::deque<ChatEntry> chat_queue;    ///< List of all chat messages received since last PopChatEntries was called
+    std::mutex data_mutex;             ///< Mutex to protect access to the data queue.
     std::deque<WifiPacket> data_queue;   ///< List of all received 802.11 frames with type `Data`
     std::mutex beacon_mutex;             ///< Mutex to protect access to the beacons queue.
     std::deque<WifiPacket> beacon_queue; ///< List of all received 802.11 frames with type `Beacon`
