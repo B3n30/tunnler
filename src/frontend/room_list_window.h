@@ -2,7 +2,9 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#define u64 uint64_t
+#include <cstdint>
+typedef uint16_t u16;
+typedef uint64_t u64;
 
 #ifndef _CITRA_QT_ROOM_LIST_WINDOW_HXX_
 #define _CITRA_QT_ROOM_LIST_WINDOW_HXX_
@@ -45,12 +47,12 @@ private:
     void closeEvent(QCloseEvent* event) override;
 
 private slots:
+    void OnRoomListSelectRoom(QString server, u16 serverPort, bool join);
 #if 0
     void OnStartGame();
     void OnPauseGame();
     void OnStopGame();
     /// Called whenever a user selects a game in the game list widget.
-    void OnGameListLoadFile(QString game_path);
     void OnGameListOpenSaveFolder(u64 program_id);
     void OnMenuLoadFile();
     void OnMenuLoadSymbolMap();
@@ -73,6 +75,9 @@ private:
     GRenderWindow* render_window;
 */
     RoomList* room_list;
+
+    QLineEdit* server = nullptr;
+    QSpinBox* port = nullptr;
 
     QCheckBox* not_full = nullptr;
     QCheckBox* not_empty = nullptr;

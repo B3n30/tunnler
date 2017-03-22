@@ -33,8 +33,8 @@ RoomListWindow::RoomListWindow() {
     RestoreUIState();
 
     ConnectMenuEvents();
-    ConnectWidgetEvents();
 #endif
+    ConnectWidgetEvents();
 
     setWindowTitle(QString("Room List"));
     show();
@@ -70,12 +70,12 @@ void RoomListWindow::InitializeWidgets() {
     direct_connection_widget->setLayout(direct_connection_widget_layout);
     {
         QLabel* server_label = new QLabel(tr("Server"));
-        QLineEdit* server = new QLineEdit();
+        server = new QLineEdit();
         direct_connection_widget_layout->addWidget(server_label);
         direct_connection_widget_layout->addWidget(server);
 
         QLabel* port_label = new QLabel(tr("Port"));
-        QSpinBox* port = new QSpinBox();
+        port = new QSpinBox();
         port->setRange(1, 65535);
         port->setValue(1234); // FIXME: Pick a proper port and / or retrieve it from tunnler
         direct_connection_widget_layout->addWidget(port_label);
@@ -147,7 +147,7 @@ void RoomListWindow::InitializeWidgets() {
            "full-speed emulation this should be at most 16.67 ms."));
 
     for (auto& label : {emu_speed_label, game_fps_label, emu_frametime_label}) {
-        label->setVisible(false);
+        //label->setVisible(false);
         label->setFrameStyle(QFrame::NoFrame);
         label->setContentsMargins(4, 0, 4, 0);
         statusBar()->addPermanentWidget(label);
@@ -159,6 +159,19 @@ void RoomListWindow::InitializeWidgets() {
 emu_speed_label->setText(tr("5 servers found, 3 hidden / filtered."));
 
 #endif
+
+
+    for (unsigned i = 0; i < 10; i++) {
+        QList<QStandardItem*> l;
+        for(unsigned int j = 0; j < 5; j++) {
+		        QStandardItem *child = new QStandardItem( QString("Item %0").arg(i)); //, QString("Foo"));
+		        child->setEditable( false );
+            l.append(child);
+        }
+        room_list->AddEntry(l);
+    }
+
+
 }
 
 #if 0
@@ -285,9 +298,19 @@ void RoomListWindow::SetDefaultUIGeometry() {
 }
 
 
+void RoomListWindow::OnRoomListSelectRoom(QString server, u16 serverPort, bool join) {
+  this->server->setText(server);
+  this->port->setValue(serverPort);
+
+  if (join) {
+    //FIXME: Pretend we pressed the join button
+    printf("Pretending to press join lolol");
+  }
+}
+
 void RoomListWindow::ConnectWidgetEvents() {
+    connect(room_list, SIGNAL(RoomChosen(QString, u16, bool)), this, SLOT(OnRoomListSelectRoom(QString, u16, bool)));
 #if 0
-    connect(room_list, SIGNAL(GameChosen(QString)), this, SLOT(OnRoomListLoadFile(QString)));
     connect(room_list, SIGNAL(OpenSaveFolderRequested(u64)), this,
             SLOT(OnRoomListOpenSaveFolder(u64)));
 

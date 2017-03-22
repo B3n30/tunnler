@@ -4,6 +4,7 @@
 
 #include <cstdint>
 typedef uint64_t u64;
+typedef uint16_t u16;
 
 #pragma once
 
@@ -43,13 +44,18 @@ public:
     static const QStringList supported_file_extensions;
 #endif
 signals:
-    void GameChosen(QString game_path);
+    void RoomChosen(QString server, u16 serverPort, bool join);
     void ShouldCancelWorker();
     void OpenSaveFolderRequested(u64 program_id);
-private:
-#if 0 
+
+public:
+    void ClearSelection();
     void AddEntry(const QList<QStandardItem*>& entry_items);
+private slots:
+    void SelectionChanged(const QItemSelection&, const QItemSelection&); 
+private:
     void ValidateEntry(const QModelIndex& item);
+#if 0
     void DonePopulating();
 
     void PopupContextMenu(const QPoint& menu_location);

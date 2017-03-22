@@ -14,6 +14,9 @@
 #include "RakSleep.h"
 #include "Gets.h"
 
+#include "restclient-cpp/connection.h"
+#include "restclient-cpp/restclient.h"
+
 //FIXME: Maybe seperate this into an interface and have LocalNetworkLobby and MasterServerLobby ?
 class Lobby {
 
@@ -56,6 +59,105 @@ public:
   if (client) {
     RakNet::RakPeerInterface::DestroyInstance(client);
   }
+}
+
+static void processInternetData(std::string masterServer) {
+  //FIXME: do some rest requests
+
+  // initialize RestClient
+  RestClient::init();
+
+  // get a connection object
+  RestClient::Connection* conn = new RestClient::Connection(std::string("http://") + masterServer);
+
+  // configure basic auth
+  //conn->SetBasicAuth("WarMachine68", "WARMACHINEROX");
+
+  // set connection timeout to 5s
+  conn->SetTimeout(5);
+
+  // set custom user agent
+  // (this will result in the UA "foo/cool restclient-cpp/VERSION")
+  //conn->SetUserAgent("foo/cool");
+
+  // enable following of redirects (default is off)
+  conn->FollowRedirects(true);
+
+  // set headers
+  RestClient::HeaderFields headers;
+  headers["Accept"] = "application/json";
+  conn->SetHeaders(headers);
+
+  // append additional headers
+//  conn->AppendHeader("X-MY-HEADER", "foo")
+
+  // if using a non-standard Certificate Authority (CA) trust file
+//  conn->SetCAInfoFilePath("/etc/custom-ca.crt")
+
+/*
+
+So we have four endpoints. 
+/room/
+GET - Gets a list of available rooms. (What are you expected to be returned?)
+POST - Creates a room. 
+DELETE - Destroys a room.
+PUT - A keep alive packet that keeps the room from automatically being destroyed.
+
+*/
+
+const std::string Path = "/room";
+
+struct RoomAddress {
+  std::string server;
+  uint16_t serverPort;
+};
+
+std::vector<RoomAddress> getRooms() {
+  RestClient::Response r = conn->get(Path);
+  //FIXME: Json foo to split a "rooms" object into the vector
+  return r->body;
+}
+
+// Returns a token
+std::string createRoom(std::string server, uint16_t serverPort) {
+  RestClient::Response r = conn->post(Path, "{\"server\": \"" + server + "\"; \"serverPort\": " + std::to_string(serverPort) + "}");
+  if (r->status != 200) {
+    return "";
+  }
+  return r->body;
+}
+
+bool updateRoom(std::string token) {
+  RestClient::Response r = conn->put(Path, "{\"token\": \"" + token + "\"}"); // FIXME: Escape token!
+  return r->status == 200;
+}
+
+bool destroyRoom(std::string token) {
+  RestClient::Response r = conn->del(Path, "{\"token\": \"" + token + "\"}"); // FIXME: Escape token!
+  return r->status == 200;
+}
+
+//RestClient::Response r = conn->post("/room", "{\"foo\": \"bla\"}")
+
+#if 0
+{
+  RestClient::Response r = conn->get("/get")
+}
+  RestClient::Response r = conn->head("/get")
+{
+  RestClient::Response r = conn->del("/delete")
+}
+#endif
+
+  // set different content header for POST and PUT
+  conn->AppendHeader("Content-Type", "text/json");
+//  RestClient::Response r = conn->post("/post", "{\"foo\": \"bla\"}")
+//  RestClient::Response r = conn->put("/put", "text/json", "{\"foo\": \"bla\"}")
+
+  // deinit RestClient. After calling this you have to call RestClient::init()
+  // again before you can use it
+  RestClient::disable();
+
 }
 
 static void processLocalNetworkData() {

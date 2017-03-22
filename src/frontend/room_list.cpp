@@ -42,15 +42,19 @@ RoomList::RoomList(QWidget* parent) : QWidget{parent} {
     item_model->setHeaderData(COLUMN_PING, Qt::Horizontal, "Ping");
     item_model->setHeaderData(COLUMN_FLAGS, Qt::Horizontal, "Flags"); // Password | LAN
 
-#if 0
     connect(tree_view, &QTreeView::activated, this, &RoomList::ValidateEntry);
+    connect(tree_view->selectionModel(), SIGNAL(selectionChanged(const QItemSelection&, const QItemSelection&)), this, SLOT(SelectionChanged(const QItemSelection&,const QItemSelection&)));
+#if 0
     connect(tree_view, &QTreeView::customContextMenuRequested, this, &RoomList::PopupContextMenu);
     connect(&watcher, &QFileSystemWatcher::directoryChanged, this, &RoomList::RefreshGameDirectory);
+#endif
 
     // We must register all custom types with the Qt Automoc system so that we are able to use it
     // with signals/slots. In this case, QList falls under the umbrells of custom types.
     qRegisterMetaType<QList<QStandardItem*>>("QList<QStandardItem*>");
-#endif
+
+    tree_view->header()->setStretchLastSection(false);
+    tree_view->header()->setSectionResizeMode(COLUMN_NAME, QHeaderView::Stretch);   
 
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(tree_view);
@@ -62,25 +66,63 @@ RoomList::~RoomList() {
 }
 
 #if 0
+//FIXME: Stolen from the internet
+bool SortFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
+{
+    QList<QModelIndex> children;
+    children << sourceModel()->index(source_row, 0, source_parent);
+ 
+    bool show = false;
+    for(int i = 0; i < children.length(); i++)
+    {
+        if(show) break;
+ 
+        // Add sub Nodos
+        //
+        for(int c = 0; c < sourceModel()->rowCount(children[i]) ;c++)
+            children.append(children[i].child(c,0));
+ 
+        QString type = sourceModel()->data(children[i], Qt::DisplayRole).toString();
+        show = type.contains(filterRegExp());        
+    }
+    return show;
+}
+#endif
+
+//#if 0
+
+void RoomList::ClearSelection() {
+    tree_view->clearSelection();
+}
 
 void RoomList::AddEntry(const QList<QStandardItem*>& entry_items) {
     item_model->invisibleRootItem()->appendRow(entry_items);
 }
 
+void RoomList::SelectionChanged(const QItemSelection&,const QItemSelection&) {
+    //FIXME: get selection etc.
+    emit RoomChosen("google.com", 1337, false); //FIXME!
+}
+
 void RoomList::ValidateEntry(const QModelIndex& item) {
     // We don't care about the individual QStandardItem that was selected, but its row.
     int row = item_model->itemFromIndex(item)->row();
-    QStandardItem* child_file = item_model->invisibleRootItem()->child(row, COLUMN_NAME);
-    QString file_path = child_file->data(RoomListItemPath::FullPathRole).toString();
+    QStandardItem* child_server = item_model->invisibleRootItem()->child(row, COLUMN_SERVER);
+    QString server = child_server->data(/*RoomListItemPath::FullPathRole*/).toString();
+
+#if 0
+
 
     if (file_path.isEmpty())
         return;
     std::string std_file_path(file_path.toStdString());
     if (!FileUtil::Exists(std_file_path) || FileUtil::IsDirectory(std_file_path))
         return;
-    emit GameChosen(file_path);
+#endif
+    emit RoomChosen(server, 1337, true); //FIXME!
 }
 
+#if 0
 void RoomList::DonePopulating() {
     tree_view->setEnabled(true);
 }
