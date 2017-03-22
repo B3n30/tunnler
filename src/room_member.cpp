@@ -69,9 +69,21 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
 std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, const MacAddress& mac_address) {
     if (type == WifiPacket::PacketType::Beacon) {
         std::lock_guard<std::mutex> lock(beacon_mutex);
-        // Clear the current beacon buffer and return the data.
-        // TODO(Subv): Filter by sending mac address.
-        return std::move(beacon_queue);
+        std::deque<WifiPacket> result_queue;
+        if(mac_address == NoPreferredMac) {         // Don't apply an address filter
+            result_queue = std::move(beacon_queue);
+            beacon_queue.clear();
+        } else {                                    // Apply the address filter
+            for(auto it = beacon_queue.begin(); it != beacon_queue.end();) {
+                if(it->transmitter_address == mac_address) {
+                    result_queue.emplace_back(std::move(*it));
+                    it = beacon_queue.erase(it);
+                }else {
+                    ++it;
+                }
+            }
+        }
+        return result_queue;
     } else {
         return {};
     }

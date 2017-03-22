@@ -85,7 +85,7 @@ public:
      * Returns a list of received 802.11 frames from the specified sender
      * matching the type since the last call.
      */
-    std::deque<WifiPacket> PopWifiPackets(WifiPacket::PacketType type, const MacAddress& sender);
+    std::deque<WifiPacket> PopWifiPackets(WifiPacket::PacketType type, const MacAddress& sender = NoPreferredMac);
 
     /**
      * Sends a chat message to the room.
