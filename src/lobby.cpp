@@ -1,3 +1,5 @@
+#include "tunnler/lobby.h"
+
 #include "MessageIdentifiers.h"
 
 #include "RakPeerInterface.h"
@@ -14,56 +16,37 @@
 #include "RakSleep.h"
 #include "Gets.h"
 
-#include "restclient-cpp/connection.h"
-#include "restclient-cpp/restclient.h"
+#include <cpr/cpr.h>
 
-//FIXME: Maybe seperate this into an interface and have LocalNetworkLobby and MasterServerLobby ?
-class Lobby {
+#if 0
+#include <cpprest/http_client.h>
+#include <cpprest/filestream.h>
 
-// Pointers to the interfaces of our server and client.
-// Note we can easily have both in the same program
-RakNet::RakPeerInterface *client = RakNet::RakPeerInterface::GetInstance();
-bool b;
-char str[256];
-RakNet::TimeMS quitTime;
-// Holds packets
-RakNet::Packet* p;  
+using namespace utility;                    // Common utilities like string conversions
+//using namespace web;                        // Common features like URIs.
+using namespace web::http;                  // Common HTTP functionality
+using namespace web::http::client;          // HTTP client features
+using namespace concurrency::streams;       // As
 
-public:
+//#include "restclient-cpp/connection.h"
+//#include "restclient-cpp/restclient.h"
 
-struct RoomInformation {
-  std::string name;
-  //FIXME: Can we somehow extract a game title id from UDS or something?
-  //FIXME: Can we somehow check the NWM cryptokey for validity?
-  unsigned int users;
-  unsigned int maxUsers;
-};
+#endif
 
-struct FoundRoom {
-  bool local; // Wether this was retrieved from a master list or LAN scan
-  std::string server;
-  unsigned int serverPort;
-    //FIXME: Store some timestamp when this was last alive, if it's too old it should probably be removed
-  RoomInformation information;
-  unsigned int ping;
-};
+#include "json.hpp"
 
-private:
+using json = nlohmann::json;
 
-std::vector<FoundRoom> foundRooms;
-
-public:
-
-~Lobby() {
+Lobby::~Lobby() {
     // We're done with the network
-  if (client) {
-    RakNet::RakPeerInterface::DestroyInstance(client);
-  }
+    if (client) {
+        RakNet::RakPeerInterface::DestroyInstance(client);
+    }
 }
 
 static void processInternetData(std::string masterServer) {
   //FIXME: do some rest requests
-
+#if 0
   // initialize RestClient
   RestClient::init();
 
@@ -93,6 +76,9 @@ static void processInternetData(std::string masterServer) {
 
   // if using a non-standard Certificate Authority (CA) trust file
 //  conn->SetCAInfoFilePath("/etc/custom-ca.crt")
+#endif
+
+}
 
 /*
 
@@ -105,64 +91,80 @@ PUT - A keep alive packet that keeps the room from automatically being destroyed
 
 */
 
-const std::string Path = "/room";
+std::vector<Lobby::FoundRoom> Lobby::GetRooms() {
+    auto url = cpr::Url{MasterServer + Path};
+    auto response = cpr::Get(url);
+#if 0
+    std::cout << "Trying to parse results from request with status " << response.status_code << std::endl;
+#endif
 
-struct RoomAddress {
-  std::string server;
-  uint16_t serverPort;
-};
+    if (response.status_code != 200) {
+        return {};
+    }
 
-std::vector<RoomAddress> getRooms() {
-  RestClient::Response r = conn->get(Path);
-  //FIXME: Json foo to split a "rooms" object into the vector
-  return r->body;
+    std::vector<Lobby::FoundRoom> found_rooms;
+
+    auto room_addresses_json = json::parse(response.text);
+    for(auto room_address_json : room_addresses_json) {
+
+        auto GetMandatoryKey = [&](const std::string& key, auto& value, json::value_t type) -> bool {
+            auto element = room_address_json.find(key);
+            if (element == room_address_json.end()) {
+                return false;
+            }
+            if (element->type() != type) {
+                return false;
+            }
+            value = room_address_json[key];
+            return true;
+        };
+
+        Lobby::FoundRoom found_room;
+
+        if (!GetMandatoryKey("server", found_room.server, json::value_t::string)) {
+            continue;
+        }
+        if (!GetMandatoryKey("serverPort", found_room.server_port, json::value_t::number_unsigned)) {
+            continue;
+        }
+
+        found_rooms.push_back(found_room);
+    }
+    return found_rooms;
 }
 
 // Returns a token
-std::string createRoom(std::string server, uint16_t serverPort) {
-  RestClient::Response r = conn->post(Path, "{\"server\": \"" + server + "\"; \"serverPort\": " + std::to_string(serverPort) + "}");
-  if (r->status != 200) {
-    return "";
-  }
-  return r->body;
+std::string Lobby::CreateRoom(std::string server, uint16_t server_port) {
+    auto url = cpr::Url{MasterServer + Path};
+    json body;
+    body["server"] = server;
+    body["serverPort"] = server_port;
+    auto response = cpr::Post(url, cpr::Body(body.dump(4)));
+    return response.text;
 }
 
-bool updateRoom(std::string token) {
-  RestClient::Response r = conn->put(Path, "{\"token\": \"" + token + "\"}"); // FIXME: Escape token!
-  return r->status == 200;
+bool Lobby::UpdateRoom(std::string token) {
+    auto url = cpr::Url{MasterServer + Path};
+    json body;
+    body["token"] = token;
+    auto response = cpr::Put(url, cpr::Body(body.dump(4)));
+    return response.status_code == 200;
 }
 
-bool destroyRoom(std::string token) {
-  RestClient::Response r = conn->del(Path, "{\"token\": \"" + token + "\"}"); // FIXME: Escape token!
-  return r->status == 200;
+bool Lobby::DestroyRoom(std::string token) {
+    auto url = cpr::Url{MasterServer + Path};
+    json body;
+    body["token"] = token;
+    auto response = cpr::Delete(url, cpr::Body(body.dump(4)));
+    return response.status_code == 200;
 }
 
-//RestClient::Response r = conn->post("/room", "{\"foo\": \"bla\"}")
-
-#if 0
-{
-  RestClient::Response r = conn->get("/get")
-}
-  RestClient::Response r = conn->head("/get")
-{
-  RestClient::Response r = conn->del("/delete")
-}
-#endif
-
-  // set different content header for POST and PUT
-  conn->AppendHeader("Content-Type", "text/json");
-//  RestClient::Response r = conn->post("/post", "{\"foo\": \"bla\"}")
-//  RestClient::Response r = conn->put("/put", "text/json", "{\"foo\": \"bla\"}")
-
-  // deinit RestClient. After calling this you have to call RestClient::init()
-  // again before you can use it
-  RestClient::disable();
-
-}
-
-static void processLocalNetworkData() {
+void Lobby::processLocalNetworkData() {
   // Loop for input
-//  while (RakNet::GetTimeMS() < quitTime) {
+//  while (RakNet::GetTimeMS() < quit_time) {
+
+#if 1
+
   p = client->Receive();
 
   if (p == nullptr) {
@@ -170,17 +172,18 @@ static void processLocalNetworkData() {
   }
 
   switch(p->data[0]) {
-  case ID_UNCONNECTED_PONG:
+  case ID_UNCONNECTED_PONG: {
     RakNet::TimeMS time;
     RakNet::BitStream bsIn(p->data,p->length,false);
     bsIn.IgnoreBytes(1);
     bsIn.Read(time);
     printf("Got pong from %s with time %i\n", p->systemAddress.ToString(), RakNet::GetTimeMS() - time);
     break;
+  }
   case ID_UNCONNECTED_PING:
     printf("ID_UNCONNECTED_PING from %s\n",p->guid.ToString());
     break;
-  case ID_UNCONNECTED_PING_OPEN_CONNECTIONS) {
+  case ID_UNCONNECTED_PING_OPEN_CONNECTIONS:
     printf("ID_UNCONNECTED_PING_OPEN_CONNECTIONS from %s\n",p->guid.ToString());
     break;
   default:
@@ -188,14 +191,31 @@ static void processLocalNetworkData() {
     break;
   }
   client->DeallocatePacket(p);
+
+#endif
 }
 
 // This might take some time to process
-void sendPing() {
-  //FIXME: Send a ping to all rooms
+Lobby::RoomInformation Lobby::GetRoomInformation(std::string server, uint16_t server_port, uint16_t client_port) {
+    RakNet::SocketDescriptor socketDescriptor(client_port, 0);
+    socketDescriptor.socketFamily = AF_INET; // Only IPV4 supports broadcast on 255.255.255.255
+
+    //FIXME:Create a temporary socket or grab one from a pool?!
+
+    client->Startup(1, &socketDescriptor, 1);
+    //FIXME: Send a ping to room
+    client->Ping(server.c_str(), server_port, false);
+
+    // Wait for a response
+    while(true) {
+      //FIXME!!!!
+      break;
+    }
+
+    return {};
 }
 
-void updateFoundRooms(unsigned int expirationTime = 5000) {
+void Lobby::updateFoundRooms(unsigned int expiration_time) {
   processLocalNetworkData();
   //FIXME: Remove dead servers = those who did not respond to ping in the last X milliseconds
 
@@ -204,21 +224,22 @@ void updateFoundRooms(unsigned int expirationTime = 5000) {
 }
 
 //FIXME: Make the parameter some chrono:: crap
-std::vector<FoundRoom> retrieveFoundRooms() {
+std::vector<Lobby::FoundRoom> Lobby::retrieveFoundRooms() {
   return foundRooms;
 }
 
-void scan(unsigned int serverPort = 1234, unsigned int clientPort = 0) {
-
-  RakNet::SocketDescriptor socketDescriptor(clientPort, 0);
+void Lobby::StartScan(unsigned int server_port, unsigned int client_port) {
+  RakNet::SocketDescriptor socketDescriptor(client_port, 0);
   socketDescriptor.socketFamily = AF_INET; // Only IPV4 supports broadcast on 255.255.255.255
   client->Startup(1, &socketDescriptor, 1);
 
   // Connecting the client is very simple.  0 means we don't care about
   // a connectionValidationInteger, and false for low priority threads
   // All 255's mean broadcast
-  client->Ping("255.255.255.255", serverPort, false);
+  client->Ping("255.255.255.255", server_port, false);
   printf("Ping-ed\n");
 }
 
-};
+void Lobby::StopScan() {
+  printf("FIXME! Kill socket!\n");
+}

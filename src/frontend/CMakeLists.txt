@@ -28,6 +28,7 @@ set(HEADERS
 #create_directory_groups(${SRCS} ${HEADERS})
 
 add_executable(frontend ${SRCS} ${HEADERS})
+target_link_libraries(frontend tunnler)
 target_link_libraries(frontend ${FRONTEND_QT_LIBS})
 target_link_libraries(frontend ${PLATFORM_LIBRARIES} Threads::Threads)
 

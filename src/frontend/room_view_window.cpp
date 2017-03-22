@@ -12,6 +12,7 @@
 #include <QMessageBox>
 #include <QtGui>
 #include <QtWidgets>
+#include <QSplitter>
 #include <QStandardItemModel>
 #include "room_view_window.h"
 
@@ -32,8 +33,8 @@ RoomViewWindow::RoomViewWindow() {
     RestoreUIState();
 
     ConnectMenuEvents();
-    ConnectWidgetEvents();
 #endif
+    ConnectWidgetEvents();
 
     setWindowTitle(QString("Room"));
     show();
@@ -66,68 +67,80 @@ void RoomViewWindow::InitializeWidgets() {
 #endif
 
 
-centralwidget = new QWidget();
-verticalLayout = new QVBoxLayout();
-centralwidget->setLayout(verticalLayout);
+    centralwidget = new QWidget();
+    verticalLayout = new QVBoxLayout();
+    centralwidget->setLayout(verticalLayout);
 
-//FIXME: !!!! Either make this a headline or move it into the status bar
-QLabel* room_name_label = new QLabel();
-room_name_label->setText("Tunnler Battlefield");
-verticalLayout->addWidget(room_name_label);
-
-
-chatWidget = new QWidget();
-gridLayout = new QGridLayout();
-chatWidget->setLayout(gridLayout);
-
-chatLog = new QTextEdit();
-chatLog->setReadOnly(true);
-gridLayout->addWidget(chatLog, 0, 0);
-
-QStandardItemModel* item_model = nullptr;
-memberList = new QTreeView(); // <item row="0" column="1" colspan="2" >
-item_model = new QStandardItemModel(memberList);
-memberList->setModel(item_model);
-
-memberList->setAlternatingRowColors(true);
-memberList->setSelectionMode(QHeaderView::SingleSelection);
-memberList->setSelectionBehavior(QHeaderView::SelectRows);
-memberList->setVerticalScrollMode(QHeaderView::ScrollPerPixel);
-memberList->setHorizontalScrollMode(QHeaderView::ScrollPerPixel);
-memberList->setSortingEnabled(true);
-memberList->setEditTriggers(QHeaderView::NoEditTriggers);
-memberList->setUniformRowHeights(true);
-memberList->setContextMenuPolicy(Qt::CustomContextMenu);
-
-enum {
-    COLUMN_ACTIVITY,
-    COLUMN_NAME,
-    COLUMN_GAME,
-    // COLUMN_MAC_ADDRESS, // This one would only confuse users
-    COLUMN_PING,
-    COLUMN_COUNT, // Number of columns
-};
-
-item_model->insertColumns(0, COLUMN_COUNT);
-item_model->setHeaderData(COLUMN_ACTIVITY, Qt::Horizontal, "Activity");
-item_model->setHeaderData(COLUMN_NAME, Qt::Horizontal, "Name");
-item_model->setHeaderData(COLUMN_GAME, Qt::Horizontal, "Game");
-//item_model->setHeaderData(COLUMN_MAC_ADDRESS, Qt::Horizontal, "MAC Address");
-item_model->setHeaderData(COLUMN_PING, Qt::Horizontal, "Ping");
+    //FIXME: !!!! Either make this a headline or move it into the status bar
+    QLabel* room_name_label = new QLabel();
+    room_name_label->setText("Tunnler Battlefield");
+    verticalLayout->addWidget(room_name_label);
 
 
-gridLayout->addWidget(memberList, 0, 1);
+    QSplitter* splitter = new QSplitter();
 
-sayLineEdit = new QLineEdit(); // <item row="1" column="0" colspan="2" >           
-gridLayout->addWidget(sayLineEdit, 1, 0);
+    QWidget* splitter_left = new QWidget();
+    QVBoxLayout* splitter_left_layout = new QVBoxLayout();
+    splitter_left->setLayout(splitter_left_layout);
+    splitter->insertWidget(0, splitter_left);
 
-sayButton = new QPushButton(tr("Say")); // <item row="1" column="2" >
-sayButton->show();
-gridLayout->addWidget(sayButton, 1, 1);
+    QWidget* splitter_right = new QWidget();
+    QVBoxLayout* splitter_right_layout = new QVBoxLayout();
+    splitter_right->setLayout(splitter_right_layout);
+    splitter->insertWidget(1, splitter_right);
 
-verticalLayout->addWidget(chatWidget);
+    chatWidget = new QWidget();
+    gridLayout = new QGridLayout();
+    chatWidget->setLayout(gridLayout);
 
-setCentralWidget(centralwidget);
+    chatLog = new QTextEdit();
+    chatLog->setReadOnly(true);
+    splitter_left_layout->addWidget(chatLog);
+
+    QStandardItemModel* item_model = nullptr;
+    memberList = new QTreeView(); // <item row="0" column="1" colspan="2" >
+    item_model = new QStandardItemModel(memberList);
+    memberList->setModel(item_model);
+
+    memberList->setAlternatingRowColors(true);
+    memberList->setSelectionMode(QHeaderView::SingleSelection);
+    memberList->setSelectionBehavior(QHeaderView::SelectRows);
+    memberList->setVerticalScrollMode(QHeaderView::ScrollPerPixel);
+    memberList->setHorizontalScrollMode(QHeaderView::ScrollPerPixel);
+    memberList->setSortingEnabled(true);
+    memberList->setEditTriggers(QHeaderView::NoEditTriggers);
+    memberList->setUniformRowHeights(true);
+    memberList->setContextMenuPolicy(Qt::CustomContextMenu);
+
+    enum {
+        COLUMN_ACTIVITY,
+        COLUMN_NAME,
+        COLUMN_GAME,
+        // COLUMN_MAC_ADDRESS, // This one would only confuse users
+        COLUMN_PING,
+        COLUMN_COUNT, // Number of columns
+    };
+
+    item_model->insertColumns(0, COLUMN_COUNT);
+    item_model->setHeaderData(COLUMN_ACTIVITY, Qt::Horizontal, "Activity");
+    item_model->setHeaderData(COLUMN_NAME, Qt::Horizontal, "Name");
+    item_model->setHeaderData(COLUMN_GAME, Qt::Horizontal, "Game");
+    //item_model->setHeaderData(COLUMN_MAC_ADDRESS, Qt::Horizontal, "MAC Address");
+    item_model->setHeaderData(COLUMN_PING, Qt::Horizontal, "Ping");
+
+
+    splitter_right_layout->addWidget(memberList);
+
+    sayLineEdit = new QLineEdit(); // <item row="1" column="0" colspan="2" >           
+    splitter_left_layout->addWidget(sayLineEdit);
+
+    sayButton = new QPushButton(tr("Say")); // <item row="1" column="2" >
+    sayButton->show();
+    splitter_right_layout->addWidget(sayButton);
+
+    verticalLayout->addWidget(splitter);
+
+    setCentralWidget(centralwidget);
 
 #if 1
     // Create status bar
@@ -151,35 +164,42 @@ setCentralWidget(centralwidget);
     statusBar()->setVisible(true);
 
 
-emu_speed_label->setText("Connected to 127.0.0.1");
-emu_speed_label->show();
+    emu_speed_label->setText("Connected to 127.0.0.1");
+    emu_speed_label->show();
 
 #endif
 
 
 
 
-// Some testing
-QString html;
+    // Some testing
+    QString html;
 
-std::vector<std::string> chatMessages;
+    std::vector<std::string> chatMessages;
 
-chatMessages.emplace_back("JayFoxRox: Heyho");
-chatMessages.emplace_back("JayFoxRox: meep <b>meep</b>");
+#if 0
+    html += "<font color=\"gray\"><i>" + QString(tr("Connecting..")).toHtmlEscaped() + "</i></font><br>";
+    html += "<font color=\"gray\"><i>" + QString(tr("Connected")).toHtmlEscaped() + "</i></font><br>";
+#else
+    html += "<font color=\"green\"><b>" + QString(tr("Connecting..")).toHtmlEscaped() + "</b></font><br>";
+    html += "<font color=\"green\"><b>" + QString(tr("Connected")).toHtmlEscaped() + "</b></font><br>";
+#endif
 
-for(const auto& message : chatMessages) {
-  //FIXME: We should probably adopt the established pidgin color scheme where:
-  //- either every user has a different color and you appear bold and always in some navy blue
-  //- OR you are navy blue and everyone else is read [all names bold]
-  // This would allow to faster recognize who said something last / if there have been new messages
-  html += QString::fromStdString(message).toHtmlEscaped() + "<br>";
-}
-html += "<font color=\"gray\"><i>" + QString(tr("XYZ joined the room")).toHtmlEscaped() + "</i></font><br>";
-html += "<font color=\"gray\"><i>" + QString(tr("XYZ changed their game")).toHtmlEscaped() + "</i></font><br>";
-html += "<font color=\"gray\"><i>" + QString(tr("XYZ left the room")).toHtmlEscaped() + "</i></font><br>";
-html += "<font color=\"green\"><b>" + QString(tr("You were dropped from the room (Connection lost)")).toHtmlEscaped() + "</b></font><br>";
-html += "<font color=\"blue\">" + QString(tr("RakNet debug message?!")).toHtmlEscaped() + "</font><br>";
-chatLog->setHtml(html);
+    chatMessages.emplace_back("JayFoxRox: Heyho");
+    chatMessages.emplace_back("JayFoxRox: meep <b>meep</b>");
+    for(const auto& message : chatMessages) {
+        //FIXME: We should probably adopt the established pidgin color scheme where:
+        //- either every user has a different color and you appear bold and always in some navy blue
+        //- OR you are navy blue and everyone else is read [all names bold]
+        // This would allow to faster recognize who said something last / if there have been new messages
+        html += QString::fromStdString(message).toHtmlEscaped() + "<br>";
+    }
+    html += "<font color=\"gray\"><i>" + QString(tr("XYZ joined the room")).toHtmlEscaped() + "</i></font><br>";
+    html += "<font color=\"gray\"><i>" + QString(tr("XYZ changed their game")).toHtmlEscaped() + "</i></font><br>";
+    html += "<font color=\"gray\"><i>" + QString(tr("XYZ left the room")).toHtmlEscaped() + "</i></font><br>";
+    html += "<font color=\"green\"><b>" + QString(tr("You were dropped from the room (Connection lost)")).toHtmlEscaped() + "</b></font><br>";
+    html += "<font color=\"blue\">" + QString(tr("RakNet debug message?!")).toHtmlEscaped() + "</font><br>";
+    chatLog->setHtml(html);
 
 
 }
@@ -327,8 +347,19 @@ void RoomViewWindow::RestoreUIState() {
     statusBar()->setVisible(ui.action_Show_Status_Bar->isChecked());
 #endif
 }
+#endif
+
+void RoomViewWindow::OnSay() {
+    room_member.SendChatMessage(sayLineEdit->text().toStdString());
+    sayLineEdit->setText("");
+}
 
 void RoomViewWindow::ConnectWidgetEvents() {
+
+
+    connect(sayLineEdit, SIGNAL(returnPressed()), sayButton, SIGNAL(clicked()));
+    connect(sayButton, SIGNAL(clicked()), this, SLOT(OnSay()));
+
 #if 0
     connect(game_list, SIGNAL(GameChosen(QString)), this, SLOT(OnGameListLoadFile(QString)));
     connect(game_list, SIGNAL(OpenSaveFolderRequested(u64)), this,
@@ -342,6 +373,7 @@ void RoomViewWindow::ConnectWidgetEvents() {
 #endif
 }
 
+#if 0
 void RoomViewWindow::ConnectMenuEvents() {
 #if 0
     // File
@@ -574,17 +606,17 @@ void RoomViewWindow::UpdateStatusBar() {
 bool RoomViewWindow::ConfirmClose() {
     auto answer = QMessageBox::question(
         this, tr("Citra"),
-        tr("Are you sure you want to leave this room? All other members will loose connection to you."),
+        tr("Are you sure you want to leave this room? Your simulated WiFi connection to all other members will be lost."),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     return answer != QMessageBox::No;
 }
 
 void RoomViewWindow::closeEvent(QCloseEvent* event) {
-#if 0
     if (!ConfirmClose()) {
         event->ignore();
         return;
     }
+#if 0
 
     UISettings::values.geometry = saveGeometry();
     UISettings::values.state = saveState();

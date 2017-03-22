@@ -13,6 +13,7 @@
 #include <QtGui>
 #include <QtWidgets>
 #include <QGridLayout>
+#include <QHBoxLayout>
 #include "room_list.h"
 #include "room_list_window.h"
 
@@ -66,7 +67,7 @@ void RoomListWindow::InitializeWidgets() {
 
     //FIXME: Automaticly keep this in sync with the select lobby server
     QWidget* direct_connection_widget = new QWidget();
-    QGridLayout* direct_connection_widget_layout = new QGridLayout();
+    QHBoxLayout* direct_connection_widget_layout = new QHBoxLayout();
     direct_connection_widget->setLayout(direct_connection_widget_layout);
     {
         QLabel* server_label = new QLabel(tr("Server"));
@@ -92,12 +93,25 @@ void RoomListWindow::InitializeWidgets() {
     }
     centralWidgetLayout->addWidget(direct_connection_widget);
 
-    QWidget* filter_widget = new QWidget();
-    QGridLayout* filter_widget_layout = new QGridLayout();
-    filter_widget->setLayout(filter_widget_layout);
+#if 0
 
     room_list = new RoomList();
     centralWidgetLayout->addWidget(room_list);
+
+    for (unsigned i = 0; i < 10; i++) {
+        QList<QStandardItem*> l;
+        for(unsigned int j = 0; j < 5; j++) {
+		        QStandardItem *child = new QStandardItem( QString("Item %0").arg(i)); //, QString("Foo"));
+		        child->setEditable( false );
+            l.append(child);
+        }
+        room_list->AddEntry(l);
+    }
+
+
+    QWidget* filter_widget = new QWidget();
+    QGridLayout* filter_widget_layout = new QGridLayout();
+    filter_widget->setLayout(filter_widget_layout);
 
     QLabel* gameFilterLabel = new QLabel(tr("Game"));
     gameFilter = new QLineEdit();
@@ -131,6 +145,9 @@ void RoomListWindow::InitializeWidgets() {
     filter_widget_layout->addWidget(pingFilter, 2, 1);
 
     centralWidgetLayout->addWidget(filter_widget);
+
+#endif
+
     setCentralWidget(centralWidget);    
 
 #if 1
@@ -161,15 +178,6 @@ emu_speed_label->setText(tr("5 servers found, 3 hidden / filtered."));
 #endif
 
 
-    for (unsigned i = 0; i < 10; i++) {
-        QList<QStandardItem*> l;
-        for(unsigned int j = 0; j < 5; j++) {
-		        QStandardItem *child = new QStandardItem( QString("Item %0").arg(i)); //, QString("Foo"));
-		        child->setEditable( false );
-            l.append(child);
-        }
-        room_list->AddEntry(l);
-    }
 
 
 }
@@ -309,7 +317,11 @@ void RoomListWindow::OnRoomListSelectRoom(QString server, u16 serverPort, bool j
 }
 
 void RoomListWindow::ConnectWidgetEvents() {
+#if 0
     connect(room_list, SIGNAL(RoomChosen(QString, u16, bool)), this, SLOT(OnRoomListSelectRoom(QString, u16, bool)));
+#endif
+
+
 #if 0
     connect(room_list, SIGNAL(OpenSaveFolderRequested(u64)), this,
             SLOT(OnRoomListOpenSaveFolder(u64)));

@@ -1,3 +1,9 @@
 [submodule "externals/RakNet"]
 	path = externals/RakNet
 	url = git://github.com/OculusVR/RakNet
+[submodule "externals/json"]
+	path = externals/json
+	url = git://github.com/nlohmann/json
+[submodule "externals/cpr"]
+	path = externals/cpr
+	url = git://github.com/whoshuu/cpr

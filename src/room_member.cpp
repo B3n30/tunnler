@@ -4,6 +4,7 @@
 
 #include <mutex>
 #include <thread>
+#include <iostream>
 
 #include "tunnler/tunnler.h"
 #include "tunnler/room.h"
@@ -28,7 +29,28 @@ RoomMember::~RoomMember() {
     RakNet::RakPeerInterface::DestroyInstance(peer);
 }
 
-void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
+void RoomMember::HandleChatPacket(const RakNet::Packet* packet) {
+    RakNet::BitStream stream(packet->data, packet->length, false);
+
+    // Ignore the first byte, which is the message id.
+    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+
+    RakNet::RakString message_string;
+    stream.Read(message_string);
+    std::string message(message_string.C_String(), message_string.GetLength());
+    {
+        std::lock_guard<std::mutex> lock(chat_mutex);
+        ChatEntry chat_entry = { "unknown", message };
+        chat_queue.emplace_back(chat_entry);
+
+        // If we have more than the max number of buffered chat messages, discard the oldest one
+        if (chat_queue.size() > MaxChatQueueSize) {
+            chat_queue.pop_front();
+        }
+    }
+}
+
+void RoomMember::HandleWifiPacket(const RakNet::Packet* packet) {
     WifiPacket wifi_packet{};
     
     auto EmplaceBackAndCheckSize = [&](std::deque<WifiPacket>& queue, size_t max_size) {
@@ -137,6 +159,17 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
     }
 }
 
+void RoomMember::SendChatMessage(const std::string& message) {
+    std::cout << "Trying to send: " << message << std::endl;
+    RakNet::BitStream stream;
+
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_CHAT));
+    RakNet::RakString message_string = message.c_str();
+    stream.Write(message_string);
+
+    peer->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, server_address, false);
+}
+
 void RoomMember::SendWifiPacket(const WifiPacket& wifi_packet) {
     RakNet::BitStream stream;
 
@@ -176,10 +209,10 @@ void RoomMember::ReceiveLoop() {
         while (packet = peer->Receive()) {
             switch (packet->data[0]) {
             case ID_ROOM_CHAT:
-                //FIXME
+                HandleChatPacket(packet);
                 break;
             case ID_ROOM_WIFI_PACKET:
-                HandleWifiPackets(packet);
+                HandleWifiPacket(packet);
                 break;
             case ID_ROOM_INFORMATION:
                 HandleRoomInformationPacket(packet);

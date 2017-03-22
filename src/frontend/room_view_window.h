@@ -7,6 +7,8 @@
 #ifndef _CITRA_QT_ROOM_VIEW_WINDOW_HXX_
 #define _CITRA_QT_ROOM_VIEW_WINDOW_HXX_
 
+#include "tunnler/room_member.h"
+
 #include <memory>
 #include <QMainWindow>
 #include <QLabel>
@@ -70,6 +72,7 @@ private:
     void closeEvent(QCloseEvent* event) override;
 
 private slots:
+    void OnSay();
     void OnStartGame();
     void OnPauseGame();
     void OnStopGame();
@@ -89,6 +92,9 @@ private slots:
 
 private:
     void UpdateStatusBar();
+
+
+RoomMember room_member;
 
     //Ui::MainWindow ui;
 

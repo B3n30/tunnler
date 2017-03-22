@@ -20,6 +20,9 @@ void Room::Create(const std::string& name, const std::string& server_address, ui
     server->Startup(MaxConcurrentConnections, &socket, 1);
     server->SetMaximumIncomingConnections(MaxConcurrentConnections);
 
+    std::vector<uint8_t> foo;
+    server->SetOfflinePingResponse((char*)foo.data(), foo.size());
+
     state = State::Open;
 
     // Start a network thread to Receive packets in a loop.

@@ -78,7 +78,7 @@ function createRoom($server, $serverPort) {
   // Generate a valid token
   do {
     $token = randHash();
-  } while(in_array($token, $rooms));
+  } while(array_key_exists($token, $rooms));
 
   // Add the room
   $room = array(
@@ -98,7 +98,8 @@ function destroyRoom($token) {
   $rooms = loadRoomsFromDB();
 
   // Make sure the room even exists
-  if (!in_array($token, $rooms)) {
+  if (!array_key_exists($token, $rooms)) {
+http_response_code(404); // FIXME:!
     return 'not_found';
   }
 
@@ -114,7 +115,7 @@ function updateRoom($token) {
   var_dump($rooms);
 
   // Make sure the room even exists
-  if (!in_array($token, $rooms)) { //FIXME: Gets stuck in this
+  if (!array_key_exists($token, $rooms)) { //FIXME: Gets stuck in this
     return 'not_found';
   }
 
@@ -159,16 +160,13 @@ switch ($method) {
   case 'GET':
     $response = getRooms();
     break;
-  case 'PUT':
-    //FIXME: Get 'server', 'serverPort'
+  case 'POST':
     $response = createRoom($input['server'], $input['serverPort']);
     break;
-  case 'POST':
-    //FIXME: Get token
+  case 'PUT':
     $response = updateRoom($input['token']);
     break;
   case 'DELETE':
-    //FIXME: Get token
     $response = destroyRoom($input['token']);
     break;
 }

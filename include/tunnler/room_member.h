@@ -132,10 +132,16 @@ private:
     MacAddress mac_address; ///< The mac_address of this member.
 
     /**
+     * Extracts a ChatPacket from a received RakNet packet and adds it to the proper queue.
+     * @param packet The RakNet packet that was received.
+     */
+    void HandleChatPacket(const RakNet::Packet* packet);
+
+    /**
      * Extracts a WifiPacket from a received RakNet packet and adds it to the proper queue.
      * @param packet The RakNet packet that was received.
      */
-    void HandleWifiPackets(const RakNet::Packet* packet);
+    void HandleWifiPacket(const RakNet::Packet* packet);
 
     /**
      * Extracts RoomInformation and MemberInformation from a received RakNet packet.
@@ -160,6 +166,10 @@ private:
     // cause an overflow in UDS::RecvBeaconBroadcastData.
     static const size_t MaxBeaconQueueSize = 25;
 
+    /// Max size of the chat message queue before the oldest entry is expunged.
+    static const size_t MaxChatQueueSize = 10;
+
+    std::mutex chat_mutex;               ///< Mutex to protect access to the chat message queue.
     std::deque<ChatEntry> chat_queue;    ///< List of all chat messages received since last PopChatEntries was called
     std::mutex data_mutex;             ///< Mutex to protect access to the data queue.
     std::deque<WifiPacket> data_queue;   ///< List of all received 802.11 frames with type `Data`
