@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -38,7 +39,7 @@ public:
 
     using MemberList = std::vector<Member>;
 
-    Room() { }
+    Room(): random_gen(std::random_device()()) { }
     ~Room() { }
 
     /**
@@ -65,6 +66,8 @@ private:
     RoomInformation room_information; ///< Information about this room.
     MemberList members; ///< Information about the members of this room.
     std::unique_ptr<std::thread> room_thread; ///< Thread that receives and dispatches network packets
+
+    std::mt19937 random_gen; ///< Random number generator. Used for GenerateMacAddress
 
     RakNet::RakPeerInterface* server = nullptr; ///< RakNet network interface.
 

@@ -2,9 +2,6 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
-#include <cstdlib>
-#include <ctime>
-
 #include "tunnler/room.h"
 #include "tunnler/room_message_types.h"
 
@@ -22,9 +19,6 @@ void Room::Create(const std::string& name, const std::string& server_address, ui
     server->SetMaximumIncomingConnections(MaxConcurrentConnections);
 
     state = State::Open;
-
-    //Generate seed for MAC Address generator
-    std::srand(std::time(0));
 
     // Start a network thread to Receive packets in a loop.
     room_thread = std::make_unique<std::thread>(&Room::ServerLoop, this);
@@ -192,12 +186,12 @@ void Room::BroadcastRoomInformation() {
 }
 
 MacAddress Room::GenerateMacAddress() {
-    MacAddress result_mac=NintendoOUI;
+    MacAddress result_mac = NintendoOUI;
+    std::uniform_real_distribution<uint8_t> dis(0, 256); //Random byte between 0 and 0xFF
     do {
-        for(int i = 3; i <= 5; ++i) {
-            int randNum = std::rand()%(256);   //Random byte between 0 and 0xFF
-            result_mac[i] = randNum;
+        for (int i = 3; i < result_mac.size(); ++i) {
+            result_mac[i] = dis(random_gen);
         }
-    } while(!IsValidMacAddress(result_mac));
+    } while (!IsValidMacAddress(result_mac));
     return result_mac;
 }

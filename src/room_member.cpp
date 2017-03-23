@@ -71,7 +71,6 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
     }
 }
 
-
 void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
     RakNet::BitStream stream(packet->data, packet->length, false);
 
@@ -100,6 +99,15 @@ void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
     }
 }
 
+void RoomMember::HandleJoinPacket(const RakNet::Packet* packet) {
+    RakNet::BitStream stream(packet->data, packet->length, false);
+
+    // Ignore the first byte, which is the message id.
+    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+
+    //Parse the MAC Address from the BitStream
+    stream.Read(mac_address);
+}
 
 std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, const MacAddress& mac_address) {
     auto FilterAndPopPackets = [&](std::deque<WifiPacket>& source_queue) {
@@ -188,6 +196,7 @@ void RoomMember::ReceiveLoop() {
                 // The join request was successful, we are now in the room.
                 // If we joined successfully, there must be at least one client in the room: us.
                 ASSERT_MSG(GetMemberInformation().size() > 0, "We have not yet received member information.");
+                HandleJoinPacket(packet);    // Get the MAC Address for the client
                 state = State::Joined;
                 break;
             case ID_DISCONNECTION_NOTIFICATION:
