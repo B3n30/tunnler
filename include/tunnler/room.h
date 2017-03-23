@@ -18,6 +18,9 @@
 
 const uint16_t DefaultRoomPort = 1234;
 
+// This MAC address is used to generate a 'Nintendo' like Mac address.
+const MacAddress NintendoOUI = { 0x00, 0x1F, 0x32, 0x00, 0x00, 0x00 };
+
 // This is what a server [person creating a server] would use.
 class Room final {
 public:
@@ -102,6 +105,7 @@ private:
 
     /**
      * Generates a free MAC address to assign to a new client.
+     * The first 3 bytes are the NintendoOUI 0x00, 0x1F, 0x32
      */
     MacAddress GenerateMacAddress();
 
