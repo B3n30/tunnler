@@ -77,6 +77,8 @@ private:
     void AddChatMessage(QString nickname, QString message, bool outbound);
     void SetUiState(bool connected);
 
+    void UpdateMemberList();
+
 private slots: //FIXME: Use QString instead of std::string?
     void OnSay();
     void OnStateChange();
@@ -113,6 +115,8 @@ QPushButton* sayButton = nullptr; // <item row="1" column="2" >
     QLabel* game_fps_label = nullptr;
     QLabel* emu_frametime_label = nullptr;
     QTimer status_bar_update_timer;
+
+    QStandardItemModel* item_model = nullptr;
 
 #if 0
     std::unique_ptr<Config> config;

@@ -39,6 +39,12 @@ RoomViewWindow::RoomViewWindow() {
     setWindowTitle(QString("Room"));
     show();
 
+
+#if 1
+    //FIXME!
+    room_member.Join("NoName");
+#endif
+
 #if 0
     game_list->PopulateAsync(UISettings::values.gamedir, UISettings::values.gamedir_deepscan);
 
@@ -98,7 +104,6 @@ void RoomViewWindow::InitializeWidgets() {
     chatLog->setReadOnly(true);
     splitter_left_layout->addWidget(chatLog);
 
-    QStandardItemModel* item_model = nullptr;
     memberList = new QTreeView(); // <item row="0" column="1" colspan="2" >
     item_model = new QStandardItemModel(memberList);
     memberList->setModel(item_model);
@@ -114,21 +119,25 @@ void RoomViewWindow::InitializeWidgets() {
     memberList->setContextMenuPolicy(Qt::CustomContextMenu);
 
     enum {
-        COLUMN_ACTIVITY,
         COLUMN_NAME,
         COLUMN_GAME,
-        // COLUMN_MAC_ADDRESS, // This one would only confuse users
+        COLUMN_MAC_ADDRESS, // This one would only confuse users
+        COLUMN_ACTIVITY,
         COLUMN_PING,
         COLUMN_COUNT, // Number of columns
     };
 
     item_model->insertColumns(0, COLUMN_COUNT);
-    item_model->setHeaderData(COLUMN_ACTIVITY, Qt::Horizontal, "Activity");
     item_model->setHeaderData(COLUMN_NAME, Qt::Horizontal, "Name");
     item_model->setHeaderData(COLUMN_GAME, Qt::Horizontal, "Game");
-    //item_model->setHeaderData(COLUMN_MAC_ADDRESS, Qt::Horizontal, "MAC Address");
+    item_model->setHeaderData(COLUMN_MAC_ADDRESS, Qt::Horizontal, "MAC Address");
+    item_model->setHeaderData(COLUMN_ACTIVITY, Qt::Horizontal, "Activity");
     item_model->setHeaderData(COLUMN_PING, Qt::Horizontal, "Ping");
 
+
+    memberList->header()->setStretchLastSection(false);
+//    memberList->header()->setSectionResizeMode(COLUMN_NAME, QHeaderView::Stretch);   
+    memberList->header()->setSectionResizeMode(COLUMN_GAME, QHeaderView::Stretch);   
 
     splitter_right_layout->addWidget(memberList);
 
@@ -350,12 +359,55 @@ void RoomViewWindow::RestoreUIState() {
 }
 #endif
 
+void RoomViewWindow::UpdateMemberList() {
+    //FIXME: Remember which row is selected
+
+    auto member_list = room_member.GetMemberInformation();
+
+    auto MacAddressString = [&](const MacAddress& mac_address) -> QString {
+        QString str;
+        for(unsigned int i = 0; i < mac_address.size(); i++) {
+            if (i > 0) {
+                str += ":";
+            }
+            str += QString("%1").arg(mac_address[i], 2, 16, QLatin1Char('0')).toUpper(); 
+        }
+        return str;
+    };
+
+    item_model->removeRows(0, item_model->rowCount());
+    for(const auto& member : member_list) {
+        QList<QStandardItem*> l;
+
+        std::vector<std::string> elements = {
+            member.nickname,
+            member.game_name,
+            MacAddressString(member.mac_address).toStdString(),
+            "- %",
+            "- ms"
+        };
+        for(auto& item : elements) {
+		        QStandardItem *child = new QStandardItem(QString::fromStdString(item));
+		        child->setEditable( false );
+            l.append(child);
+        }
+        item_model->invisibleRootItem()->appendRow(l);
+    }
+
+    //FIXME: Restore row selection
+}
+
 void RoomViewWindow::OnSay() {
     QString message = sayLineEdit->text();
     room_member.SendChatMessage(message.toStdString());
     AddChatMessage(QString("NoName"), message, true);
     sayLineEdit->setText("");
     sayLineEdit->setFocus();
+
+
+    //FIXME: Temporary hack to test memberlist + room member state
+    UpdateMemberList();
+    OnStateChange();
 }
 
 void RoomViewWindow::ConnectWidgetEvents() {
@@ -465,7 +517,7 @@ void RoomViewWindow::ToggleWindowMode() {
 
 #endif
 
-static void appendHtml(QTextEdit* text_edit, QString html) {
+static void AppendHtml(QTextEdit* text_edit, QString html) {
     //FIXME: Keep cursor / selection where it is etc
 
     auto* scrollbar = text_edit->verticalScrollBar();
@@ -487,24 +539,24 @@ static void appendHtml(QTextEdit* text_edit, QString html) {
 void RoomViewWindow::AddRoomMessage(QString message) {
     QString html;
     html += "<font color=\"gray\"><i>" + message.toHtmlEscaped() + "</i></font><br>";
-    appendHtml(chatLog, html);
+    AppendHtml(chatLog, html);
 }
 
 void RoomViewWindow::AddConnectionMessage(QString message) {
     QString html;
     html += "<font color=\"green\"><b>" + message.toHtmlEscaped() + "</b></font><br>";
-    appendHtml(chatLog, html);
+    AppendHtml(chatLog, html);
 }
 
 void RoomViewWindow::AddChatMessage(QString nickname, QString message, bool outbound) {
     QString html;
     if (outbound) {
-        html += "<font color=\"RoyalBlue\"><b>" + nickname.toHtmlEscaped() + "</b></font>: ";
+        html += "<font color=\"RoyalBlue\"><b>" + nickname.toHtmlEscaped() + ":</b></font> ";
     } else {
-        html += "<font color=\"Red\"><b>" + nickname.toHtmlEscaped() + "</b></font>: ";
+        html += "<font color=\"Red\"><b>" + nickname.toHtmlEscaped() + ":</b></font> ";
     }
     html += message.toHtmlEscaped();// + "<br>";
-    appendHtml(chatLog, html);
+    AppendHtml(chatLog, html);
 }
 
 void RoomViewWindow::SetUiState(bool connected) {
@@ -563,6 +615,7 @@ void RoomViewWindow::OnRoomGameChange(std::string game_name) {
 
 void RoomViewWindow::OnMemberGameChange(std::string nickname, std::string game_name) {
     AddRoomMessage(QString(tr("%1 is playing %2")).arg(QString::fromStdString(nickname)).arg(QString::fromStdString(game_name)));
+    UpdateMemberList();
 }
 
 void RoomViewWindow::OnDisconnected() {
@@ -572,10 +625,12 @@ void RoomViewWindow::OnDisconnected() {
 void RoomViewWindow::OnMemberLeft(std::string nickname) {
     QString reason(tr("Unknown reason"));
     AddRoomMessage(QString(tr("%1 is no longer in the room (%2)")).arg(QString::fromStdString(nickname)).arg(reason));
+    UpdateMemberList();
 }
 
 void RoomViewWindow::OnMemberJoined(std::string nickname) {
     AddRoomMessage(QString(tr("%1 joined the room")).arg(QString::fromStdString(nickname)));
+    UpdateMemberList();
 #if 0
     ConfigureDialog configureDialog(this);
     auto result = configureDialog.exec();

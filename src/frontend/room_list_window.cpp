@@ -101,7 +101,7 @@ void RoomListWindow::InitializeWidgets() {
     for (unsigned i = 0; i < 10; i++) {
         QList<QStandardItem*> l;
         for(unsigned int j = 0; j < 5; j++) {
-		        QStandardItem *child = new QStandardItem( QString("Item %0").arg(i)); //, QString("Foo"));
+		        QStandardItem *child = new QStandardItem(QString("Item %0").arg(i));
 		        child->setEditable( false );
             l.append(child);
         }
