@@ -28,7 +28,7 @@ public:
 
     struct Member {
         std::string nickname; ///< The nickname of the member.
-        std::string game_name;
+        std::string game_name; //< The current game of the member
         MacAddress mac_address; ///< The assigned mac address of the member.
         RakNet::AddressOrGUID network_address; ///< The network address of the remote peer.
     };
@@ -81,8 +81,8 @@ private:
      * The packet has the structure:
      * <MessageID>ID_ROOM_INFORMATION
      * <RakString> room_name
-     * <unsigned int> member_slots: The max number of clients allowed in this room
-     * <unsigned int> num_members: the number of currently joined clients
+     * <uint32_t> member_slots: The max number of clients allowed in this room
+     * <uint32_t> num_members: the number of currently joined clients
      * This is followed by the following three values for each member:
      * <RakString> nickname of that member
      * <MacAddress> mac_address of that member

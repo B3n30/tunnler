@@ -173,7 +173,7 @@ void Room::BroadcastRoomInformation() {
     stream.Write(room_name);
     stream.Write(room_information.member_slots);
 
-    stream.Write(members.size());
+    stream.Write(static_cast<uint32_t>(members.size()));
     for (const auto& member: members) {
         RakNet::RakString nickname = member.nickname.c_str();
         RakNet::RakString game_name = member.game_name.c_str();

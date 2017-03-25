@@ -31,5 +31,5 @@ struct WifiPacket {
 
 struct RoomInformation {
     std::string name;          // Name of the server
-    unsigned int member_slots; // Maximum number of members in this room
+    uint32_t member_slots; // Maximum number of members in this room
 };

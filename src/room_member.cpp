@@ -78,11 +78,11 @@ void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
     room_information.name.assign(room_name.C_String(), room_name.GetLength());
     stream.Read(room_information.member_slots);
 
-    unsigned int num_members;
+    uint32_t num_members;
     stream.Read(num_members);
     member_information.resize(num_members);
     
-    for (auto& member: member_information) {
+    for (auto& member : member_information) {
         RakNet::RakString nickname;
         stream.Read(nickname);
         member.nickname.assign(nickname.C_String(), nickname.GetLength());
