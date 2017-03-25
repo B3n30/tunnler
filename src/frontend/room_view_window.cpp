@@ -71,11 +71,12 @@ void RoomViewWindow::InitializeWidgets() {
     verticalLayout = new QVBoxLayout();
     centralwidget->setLayout(verticalLayout);
 
+#if 0
     //FIXME: !!!! Either make this a headline or move it into the status bar
     QLabel* room_name_label = new QLabel();
     room_name_label->setText("Tunnler Battlefield");
     verticalLayout->addWidget(room_name_label);
-
+#endif
 
     QSplitter* splitter = new QSplitter();
 
@@ -182,7 +183,7 @@ void RoomViewWindow::InitializeWidgets() {
     html += "<font color=\"gray\"><i>" + QString(tr("Connected")).toHtmlEscaped() + "</i></font><br>";
 #else
     html += "<font color=\"green\"><b>" + QString(tr("Connecting..")).toHtmlEscaped() + "</b></font><br>";
-    html += "<font color=\"green\"><b>" + QString(tr("Connected")).toHtmlEscaped() + "</b></font><br>";
+
 #endif
 
     chatMessages.emplace_back("JayFoxRox: Heyho");
@@ -350,8 +351,11 @@ void RoomViewWindow::RestoreUIState() {
 #endif
 
 void RoomViewWindow::OnSay() {
-    room_member.SendChatMessage(sayLineEdit->text().toStdString());
+    QString message = sayLineEdit->text();
+    room_member.SendChatMessage(message.toStdString());
+    AddChatMessage(QString("NoName"), message, true);
     sayLineEdit->setText("");
+    sayLineEdit->setFocus();
 }
 
 void RoomViewWindow::ConnectWidgetEvents() {
@@ -401,105 +405,7 @@ void RoomViewWindow::ConnectMenuEvents() {
 
 #endif
 
-void RoomViewWindow::OnDisplayTitleBars(bool show) {
 #if 0
-    QList<QDockWidget*> widgets = findChildren<QDockWidget*>();
-
-    if (show) {
-        for (QDockWidget* widget : widgets) {
-            QWidget* old = widget->titleBarWidget();
-            widget->setTitleBarWidget(nullptr);
-            if (old != nullptr)
-                delete old;
-        }
-    } else {
-        for (QDockWidget* widget : widgets) {
-            QWidget* old = widget->titleBarWidget();
-            widget->setTitleBarWidget(new QWidget());
-            if (old != nullptr)
-                delete old;
-        }
-    }
-#endif
-}
-
-void RoomViewWindow::OnGameListOpenSaveFolder(u64 program_id) {
-#if 0
-    std::string sdmc_dir = FileUtil::GetUserPath(D_SDMC_IDX);
-    std::string path = FileSys::ArchiveSource_SDSaveData::GetSaveDataPathFor(sdmc_dir, program_id);
-    QString qpath = QString::fromStdString(path);
-
-    QDir dir(qpath);
-    if (!dir.exists()) {
-        QMessageBox::critical(this, tr("Error Opening Save Folder"), tr("Folder does not exist!"));
-        return;
-    }
-
-    LOG_INFO(Frontend, "Opening save data path for program_id=%" PRIu64, program_id);
-    QDesktopServices::openUrl(QUrl::fromLocalFile(qpath));
-#endif
-}
-
-void RoomViewWindow::OnMenuLoadFile() {
-#if 0
-    QString extensions;
-    for (const auto& piece : game_list->supported_file_extensions)
-        extensions += "*." + piece + " ";
-
-    QString file_filter = tr("3DS Executable") + " (" + extensions + ")";
-    file_filter += ";;" + tr("All Files (*.*)");
-
-    QString filename = QFileDialog::getOpenFileName(this, tr("Load File"),
-                                                    UISettings::values.roms_path, file_filter);
-    if (!filename.isEmpty()) {
-        UISettings::values.roms_path = QFileInfo(filename).path();
-
-        BootGame(filename);
-    }
-#endif
-}
-
-void RoomViewWindow::OnMenuLoadSymbolMap() {
-#if 0
-    QString filename = QFileDialog::getOpenFileName(
-        this, tr("Load Symbol Map"), UISettings::values.symbols_path, tr("Symbol Map (*.*)"));
-    if (!filename.isEmpty()) {
-        UISettings::values.symbols_path = QFileInfo(filename).path();
-
-        LoadSymbolMap(filename.toStdString());
-    }
-#endif
-}
-
-void RoomViewWindow::OnMenuSelectGameListRoot() {
-#if 0
-    QString dir_path = QFileDialog::getExistingDirectory(this, tr("Select Directory"));
-    if (!dir_path.isEmpty()) {
-        UISettings::values.gamedir = dir_path;
-        game_list->PopulateAsync(dir_path, UISettings::values.gamedir_deepscan);
-    }
-#endif
-}
-
-void RoomViewWindow::OnMenuRecentFile() {
-#if 0
-    QAction* action = qobject_cast<QAction*>(sender());
-    assert(action);
-
-    QString filename = action->data().toString();
-    QFileInfo file_info(filename);
-    if (file_info.exists()) {
-        BootGame(filename);
-    } else {
-        // Display an error message and remove the file from the list.
-        QMessageBox::information(this, tr("File not found"),
-                                 tr("File \"%1\" not found").arg(filename));
-
-        UISettings::values.recent_files.removeOne(filename);
-        UpdateRecentFiles();
-    }
-#endif
-}
 
 void RoomViewWindow::OnStartGame() {
 #if 0
@@ -529,6 +435,7 @@ void RoomViewWindow::OnStopGame() {
 #endif
 }
 
+
 void RoomViewWindow::ToggleWindowMode() {
 #if 0
     if (ui.action_Single_Window_Mode->isChecked()) {
@@ -556,7 +463,108 @@ void RoomViewWindow::ToggleWindowMode() {
 #endif
 }
 
-void RoomViewWindow::OnConfigure() {
+#endif
+
+static void appendHtml(QTextEdit* text_edit, QString html) {
+    //FIXME: Keep cursor / selection where it is etc
+    //FIXME: If scrollbar was at very bottom, move it to very bottom
+    //FIXME: If scrollbar was not at very bottom, keep it where it is
+    QString new_html = text_edit->toHtml();
+    new_html += html;
+    text_edit->setHtml(new_html);
+}
+
+void RoomViewWindow::AddRoomMessage(QString message) {
+    QString html;
+    html += "<font color=\"gray\"><i>" + message.toHtmlEscaped() + "</i></font><br>";
+    appendHtml(chatLog, html);
+}
+
+void RoomViewWindow::AddConnectionMessage(QString message) {
+    QString html;
+    html += "<font color=\"green\"><b>" + message.toHtmlEscaped() + "</b></font><br>";
+    appendHtml(chatLog, html);
+}
+
+void RoomViewWindow::AddChatMessage(QString nickname, QString message, bool outbound) {
+    QString html;
+    if (outbound) {
+        html += "<font color=\"RoyalBlue\"><b>" + nickname.toHtmlEscaped() + "</b></font>: ";
+    } else {
+        html += "<font color=\"Red\"><b>" + nickname.toHtmlEscaped() + "</b></font>: ";
+    }
+    html += message.toHtmlEscaped();// + "<br>";
+    appendHtml(chatLog, html);
+}
+
+void RoomViewWindow::SetUiState(bool connected) {
+    if (connected) {
+        // FIXME: Enable playerlist
+        //Enable chat button and chat typing
+    } else {
+        // FIXME: Clear playerlist or at least disable it
+        // Disable chat button and chat typing
+    }
+}
+
+void RoomViewWindow::OnStateChange() {
+    switch(room_member.GetState()) {
+    case RoomMember::State::Idle:
+        break;
+    case RoomMember::State::Error:
+        AddConnectionMessage(tr("The network could not be used. Make sure your system is connected to the network and you have the necessary permissions"));
+        break;
+    case RoomMember::State::Joining:
+        chatLog->setHtml(""); //FIXME: Only do this when the server has changed, not in case of reconnect attempts!
+        AddConnectionMessage(tr("Attempting to join room (Connecting)..."));
+        break;
+    case RoomMember::State::Joined:
+        AddConnectionMessage(tr("Room joined successfully (Connected)"));
+//        emit OnConnected();
+        break;
+    case RoomMember::State::LostConnection:
+        AddConnectionMessage(tr("Disconnected (Lost connection to room)"));
+//        emit OnDisconnected();
+        break;
+    case RoomMember::State::RoomFull:
+        AddConnectionMessage(tr("Unable to join (The room is full)"));
+        break;
+    case RoomMember::State::RoomDestroyed:
+        AddConnectionMessage(tr("Unable to join (The room could not be found)"));
+        break;
+    case RoomMember::State::NameCollision:
+        AddConnectionMessage(tr("Unable to join (The nickname is already in use)"));
+        break;
+    case RoomMember::State::MacCollision:
+        AddConnectionMessage(tr("Unable to join (The preferred mac address is already in use)"));
+        break;
+    case RoomMember::State::WrongVersion:
+        AddConnectionMessage(tr("Unable to join (Room is using another Citra version)"));
+        break;
+    default:
+        assert(false);
+        break;
+    }
+}
+
+void RoomViewWindow::OnRoomGameChange(std::string game_name) {
+    AddRoomMessage(QString(tr("The room is now intended for playing %1")).arg(QString::fromStdString(game_name)));
+}
+
+void RoomViewWindow::OnMemberGameChange(std::string nickname, std::string game_name) {
+    AddRoomMessage(QString(tr("%1 is now playing %2")).arg(QString::fromStdString(nickname)).arg(QString::fromStdString(game_name)));
+}
+
+void RoomViewWindow::OnDisconnected() {
+    SetUiState(false);
+}
+
+void RoomViewWindow::OnMemberLeft(std::string nickname) {
+    AddRoomMessage(QString(tr("%1 left the room")).arg(QString::fromStdString(nickname)));
+}
+
+void RoomViewWindow::OnMemberJoined(std::string nickname) {
+    AddRoomMessage(QString(tr("%1 joined the room")).arg(QString::fromStdString(nickname)));
 #if 0
     ConfigureDialog configureDialog(this);
     auto result = configureDialog.exec();
@@ -565,22 +573,6 @@ void RoomViewWindow::OnConfigure() {
         render_window->ReloadSetKeymaps();
         config->Save();
     }
-#endif
-}
-
-void RoomViewWindow::OnSwapScreens() {
-#if 0
-    Settings::values.swap_screen = !Settings::values.swap_screen;
-    Settings::Apply();
-#endif
-}
-
-void RoomViewWindow::OnCreateGraphicsSurfaceViewer() {
-#if 0
-    auto graphicsSurfaceViewerWidget = new GraphicsSurfaceWidget(Pica::g_debug_context, this);
-    addDockWidget(Qt::RightDockWidgetArea, graphicsSurfaceViewerWidget);
-    // TODO: Maybe graphicsSurfaceViewerWidget->setFloating(true);
-    graphicsSurfaceViewerWidget->show();
 #endif
 }
 
@@ -616,29 +608,6 @@ void RoomViewWindow::closeEvent(QCloseEvent* event) {
         event->ignore();
         return;
     }
-#if 0
-
-    UISettings::values.geometry = saveGeometry();
-    UISettings::values.state = saveState();
-    UISettings::values.renderwindow_geometry = render_window->saveGeometry();
-#if MICROPROFILE_ENABLED
-    UISettings::values.microprofile_geometry = microProfileDialog->saveGeometry();
-    UISettings::values.microprofile_visible = microProfileDialog->isVisible();
-#endif
-    UISettings::values.single_window_mode = ui.action_Single_Window_Mode->isChecked();
-    UISettings::values.display_titlebar = ui.action_Display_Dock_Widget_Headers->isChecked();
-    UISettings::values.show_status_bar = ui.action_Show_Status_Bar->isChecked();
-    UISettings::values.first_start = false;
-
-    game_list->SaveInterfaceLayout();
-    SaveHotkeys();
-
-    // Shutdown session if the emu thread is active...
-    if (emu_thread != nullptr)
-        ShutdownGame();
-
-    render_window->close();
 
     QWidget::closeEvent(event);
-#endif
 }

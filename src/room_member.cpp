@@ -160,7 +160,7 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
 }
 
 void RoomMember::SendChatMessage(const std::string& message) {
-    std::cout << "Trying to send: " << message << std::endl;
+    std::cout << "Trying to send: '" << message << "'" << std::endl;
     RakNet::BitStream stream;
 
     stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_CHAT));

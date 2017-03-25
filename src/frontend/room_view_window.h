@@ -71,24 +71,20 @@ private:
     bool ConfirmClose();
     void closeEvent(QCloseEvent* event) override;
 
-private slots:
+
+    void AddRoomMessage(QString message);
+    void AddConnectionMessage(QString message);
+    void AddChatMessage(QString nickname, QString message, bool outbound);
+    void SetUiState(bool connected);
+
+private slots: //FIXME: Use QString instead of std::string?
     void OnSay();
-    void OnStartGame();
-    void OnPauseGame();
-    void OnStopGame();
-    /// Called whenever a user selects a game in the game list widget.
-//    void OnGameListLoadFile(QString game_path);
-    void OnGameListOpenSaveFolder(u64 program_id);
-    void OnMenuLoadFile();
-    void OnMenuLoadSymbolMap();
-    /// Called whenever a user selects the "File->Select Game List Root" menu item
-    void OnMenuSelectGameListRoot();
-    void OnMenuRecentFile();
-    void OnSwapScreens();
-    void OnConfigure();
-    void OnDisplayTitleBars(bool);
-    void ToggleWindowMode();
-    void OnCreateGraphicsSurfaceViewer();
+    void OnStateChange();
+    void OnRoomGameChange(std::string game_name);
+    void OnMemberGameChange(std::string nickname, std::string game_name);
+    void OnDisconnected();
+    void OnMemberLeft(std::string nickname);
+    void OnMemberJoined(std::string nickname);
 
 private:
     void UpdateStatusBar();
