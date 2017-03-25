@@ -175,7 +175,7 @@ void RoomMember::ReceiveLoop() {
 };
 
 void RoomMember::Join(const std::string& nickname, const std::string& server, uint16_t server_port, uint16_t client_port) {
-    RakNet::SocketDescriptor socket(client_port, "");
+    RakNet::SocketDescriptor socket(client_port, 0);
     peer->Startup(1, &socket, 1);
 
     RakNet::ConnectionAttemptResult result = peer->Connect(server.c_str(), server_port, nullptr, 0);
