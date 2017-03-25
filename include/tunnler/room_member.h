@@ -129,6 +129,7 @@ private:
     RakNet::RakPeerInterface* peer; ///< RakNet network interface.
 
     std::string nickname; ///< The nickname of this member.
+    MacAddress mac_address; ///< The mac_address of this member.
 
     /**
      * Extracts a WifiPacket from a received RakNet packet and adds it to the proper queue.
@@ -141,6 +142,12 @@ private:
      * @param packet The RakNet packet that was received.
      */
     void HandleRoomInformationPacket(const RakNet::Packet* packet);
+
+    /**
+     * Extracts a MAC Address from a received RakNet packet.
+     * @param packet The RakNet packet that was received.
+     */
+    void HandleJoinPacket(const RakNet::Packet* packet);
 
     std::unique_ptr<std::thread> receive_thread; ///< Thread that receives and dispatches network packets
 

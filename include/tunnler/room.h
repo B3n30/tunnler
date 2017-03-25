@@ -8,6 +8,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -17,6 +18,9 @@
 #include "RakPeerInterface.h"
 
 const uint16_t DefaultRoomPort = 1234;
+
+// This MAC address is used to generate a 'Nintendo' like Mac address.
+const MacAddress NintendoOUI = { 0x00, 0x1F, 0x32, 0x00, 0x00, 0x00 };
 
 // This is what a server [person creating a server] would use.
 class Room final {
@@ -35,7 +39,7 @@ public:
 
     using MemberList = std::vector<Member>;
 
-    Room() { }
+    Room(): random_gen(std::random_device()()) { }
     ~Room() { }
 
     /**
@@ -62,6 +66,8 @@ private:
     RoomInformation room_information; ///< Information about this room.
     MemberList members; ///< Information about the members of this room.
     std::unique_ptr<std::thread> room_thread; ///< Thread that receives and dispatches network packets
+
+    std::mt19937 random_gen; ///< Random number generator. Used for GenerateMacAddress
 
     RakNet::RakPeerInterface* server = nullptr; ///< RakNet network interface.
 
@@ -102,6 +108,7 @@ private:
 
     /**
      * Generates a free MAC address to assign to a new client.
+     * The first 3 bytes are the NintendoOUI 0x00, 0x1F, 0x32
      */
     MacAddress GenerateMacAddress();
 
