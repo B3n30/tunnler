@@ -99,6 +99,13 @@ void Room::ServerLoop() {
                 server->Send(reinterpret_cast<char*>(packet->data), packet->length,
                              HIGH_PRIORITY, RELIABLE, 0, packet->systemAddress, true);
                 break;
+            case ID_ROOM_CHAT:
+                // Received a chat packet, broadcast it to everyone including the sender.
+                // TODO(B3N30): Maybe change this to a loop over `members`, since we only want to
+                // send this data to the people who have actually joined the room.
+                server->Send(reinterpret_cast<char*>(packet->data), packet->length,
+                             LOW_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+                break;
             default:
                 break;
             }
