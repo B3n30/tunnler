@@ -169,11 +169,12 @@ void RoomListWindow::InitializeWidgets() {
         label->setContentsMargins(4, 0, 4, 0);
         statusBar()->addPermanentWidget(label);
     }
-    statusBar()->setVisible(true);
+    statusBar()->setVisible(false);
 
 
-
-emu_speed_label->setText(tr("5 servers found, 3 hidden / filtered."));
+unsigned int servers_found = 0;
+unsigned int servers_filtered = 0;
+emu_speed_label->setText(tr("%1 servers found, %2 hidden / filtered.").arg(servers_found).arg(servers_filtered));
 
 #endif
 

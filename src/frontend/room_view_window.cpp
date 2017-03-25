@@ -467,11 +467,21 @@ void RoomViewWindow::ToggleWindowMode() {
 
 static void appendHtml(QTextEdit* text_edit, QString html) {
     //FIXME: Keep cursor / selection where it is etc
-    //FIXME: If scrollbar was at very bottom, move it to very bottom
-    //FIXME: If scrollbar was not at very bottom, keep it where it is
+
+    auto* scrollbar = text_edit->verticalScrollBar();
+    auto scrollbar_value = scrollbar->value();
+    bool scroll_down = (scrollbar_value == scrollbar->maximum());
+
     QString new_html = text_edit->toHtml();
     new_html += html;
     text_edit->setHtml(new_html);
+
+    // Scroll to the very bottom
+    if (scroll_down) {
+      scrollbar->setValue(scrollbar->maximum());
+    } else {
+      scrollbar->setValue(scrollbar_value);
+    }
 }
 
 void RoomViewWindow::AddRoomMessage(QString message) {
@@ -548,11 +558,11 @@ void RoomViewWindow::OnStateChange() {
 }
 
 void RoomViewWindow::OnRoomGameChange(std::string game_name) {
-    AddRoomMessage(QString(tr("The room is now intended for playing %1")).arg(QString::fromStdString(game_name)));
+    AddRoomMessage(QString(tr("The room is intended for playing %1")).arg(QString::fromStdString(game_name)));
 }
 
 void RoomViewWindow::OnMemberGameChange(std::string nickname, std::string game_name) {
-    AddRoomMessage(QString(tr("%1 is now playing %2")).arg(QString::fromStdString(nickname)).arg(QString::fromStdString(game_name)));
+    AddRoomMessage(QString(tr("%1 is playing %2")).arg(QString::fromStdString(nickname)).arg(QString::fromStdString(game_name)));
 }
 
 void RoomViewWindow::OnDisconnected() {
@@ -560,7 +570,8 @@ void RoomViewWindow::OnDisconnected() {
 }
 
 void RoomViewWindow::OnMemberLeft(std::string nickname) {
-    AddRoomMessage(QString(tr("%1 left the room")).arg(QString::fromStdString(nickname)));
+    QString reason(tr("Unknown reason"));
+    AddRoomMessage(QString(tr("%1 is no longer in the room (%2)")).arg(QString::fromStdString(nickname)).arg(reason));
 }
 
 void RoomViewWindow::OnMemberJoined(std::string nickname) {
