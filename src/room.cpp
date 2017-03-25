@@ -167,9 +167,20 @@ void Room::SendJoinSuccess(const Member& member) {
 
 void Room::BroadcastRoomInformation() {
     RakNet::BitStream stream;
-    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_JOIN_SUCCESS));
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_INFORMATION));
 
-    // TODO(Subv): Add the room and member information to the packet.
+    RakNet::RakString room_name = room_information.name.c_str();
+    stream.Write(room_name);
+    stream.Write(room_information.member_slots);
+
+    stream.Write(members.size());
+    for (const auto& member: members) {
+        RakNet::RakString nickname = member.nickname.c_str();
+        RakNet::RakString game_name = member.game_name.c_str();
+        stream.Write(nickname);
+        stream.Write(member.mac_address);
+        stream.Write(game_name);
+    }
 
     server->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 }
