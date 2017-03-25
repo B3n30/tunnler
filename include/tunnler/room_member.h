@@ -136,6 +136,12 @@ private:
      */
     void HandleWifiPackets(const RakNet::Packet* packet);
 
+    /**
+     * Extracts RoomInformation and MemberInformation from a received RakNet packet.
+     * @param packet The RakNet packet that was received.
+     */
+    void HandleRoomInformationPacket(const RakNet::Packet* packet);
+
     std::unique_ptr<std::thread> receive_thread; ///< Thread that receives and dispatches network packets
 
     /// Max size of the beacon queue before the oldest entry is expunged.

@@ -66,6 +66,35 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
     }
 }
 
+
+void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
+    RakNet::BitStream stream(packet->data, packet->length, false);
+
+    // Ignore the first byte, which is the message id.
+    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+
+    RakNet::RakString room_name;
+    stream.Read(room_name);
+    room_information.name.assign(room_name.C_String(), room_name.GetLength());
+    stream.Read(room_information.member_slots);
+
+    uint32_t num_members;
+    stream.Read(num_members);
+    member_information.resize(num_members);
+    
+    for (auto& member : member_information) {
+        RakNet::RakString nickname;
+        stream.Read(nickname);
+        member.nickname.assign(nickname.C_String(), nickname.GetLength());
+
+        stream.Read(member.mac_address);
+
+        RakNet::RakString game_name;
+        stream.Read(game_name);
+        member.game_name.assign(game_name.C_String(), game_name.GetLength());
+    }
+}
+
 std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, const MacAddress& mac_address) {
     if (type == WifiPacket::PacketType::Beacon) {
         std::lock_guard<std::mutex> lock(beacon_mutex);
@@ -122,7 +151,7 @@ void RoomMember::ReceiveLoop() {
                 HandleWifiPackets(packet);
                 break;
             case ID_ROOM_INFORMATION:
-                //FIXME: Update playerlist from packet
+                HandleRoomInformationPacket(packet);
                 break;
             case ID_ROOM_NAME_COLLISION:
                 state = State::NameCollision;
