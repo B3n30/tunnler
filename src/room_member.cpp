@@ -39,6 +39,7 @@ void RoomMember::HandleChatPacket(const RakNet::Packet* packet) {
     stream.Read(nickname);
     chat_entry.nickname.assign(nickname.C_String(), nickname.GetLength());
     RakNet::RakString message;
+    stream.Read(message);
     chat_entry.message.assign(message.C_String(),message.GetLength());
 
     std::lock_guard<std::mutex> lock(chat_mutex);
