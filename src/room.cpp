@@ -79,14 +79,13 @@ void Room::HandleJoinRequest(const RakNet::Packet* packet) {
 }
 
 void Room::HandleChatPacket(const RakNet::Packet* packet) {
-    auto MatchNetworkAddress = [&](const Member& member) {return member.network_address == packet->systemAddress;};
     RakNet::BitStream in_stream(packet->data, packet->length, false);
 
     in_stream.IgnoreBytes(sizeof(RakNet::MessageID));
     RakNet::RakString message;
     in_stream.Read(message);
     const auto sending_member = std::find_if(members.begin(), members.end(),
-                                             MatchNetworkAddress);
+                                            [&](const Member member) {return member.network_address == packet->systemAddress;});
 
     if (sending_member == members.end())    // Sender is not a joined member
         return;
@@ -97,7 +96,7 @@ void Room::HandleChatPacket(const RakNet::Packet* packet) {
     out_stream.Write(nickname);
     out_stream.Write(message);
     server->Send(&out_stream,
-                  LOW_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+                LOW_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 }
 
 void Room::ServerLoop() {
@@ -123,7 +122,6 @@ void Room::ServerLoop() {
                 break;
             case ID_ROOM_CHAT:
                 HandleChatPacket(packet);
-
                 break;
             default:
                 break;
