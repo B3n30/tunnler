@@ -24,7 +24,7 @@ RoomMember::~RoomMember() {
     if (receive_thread) {
         receive_thread->join();
     }
-    peer->Shutdown(300);
+    CloseConnection();
     RakNet::RakPeerInterface::DestroyInstance(peer);
 }
 
@@ -186,11 +186,11 @@ void RoomMember::ReceiveLoop() {
                 break;
             case ID_ROOM_NAME_COLLISION:
                 state = State::NameCollision;
-                peer->Shutdown(300);
+                CloseConnection();
                 break;
             case ID_ROOM_MAC_COLLISION:
                 state = State::MacCollision;
-                peer->Shutdown(300);
+                CloseConnection();
                 break;
             case ID_ROOM_JOIN_SUCCESS:
                 // The join request was successful, we are now in the room.
@@ -202,24 +202,24 @@ void RoomMember::ReceiveLoop() {
             case ID_DISCONNECTION_NOTIFICATION:
                 // Connection lost normally
                 state = State::Idle;
-                peer->Shutdown(300);
+                CloseConnection();
                 break;
             case ID_INCOMPATIBLE_PROTOCOL_VERSION:
                 state = State::WrongVersion;
-                peer->Shutdown(300);
+                CloseConnection();
                 break;
             case ID_CONNECTION_ATTEMPT_FAILED:
                 state = State::Error;
-                peer->Shutdown(300);
+                CloseConnection();
                 break;
             case ID_NO_FREE_INCOMING_CONNECTIONS:
                 state = State::RoomFull;
-                peer->Shutdown(300);
+                CloseConnection();
                 break;
             case ID_CONNECTION_LOST:
                 // Couldn't deliver a reliable packet, the other system was abnormally terminated
                 state = State::LostConnection;
-                peer->Shutdown(300);
+                CloseConnection();
                 break;
             case ID_CONNECTION_REQUEST_ACCEPTED:
                 // Update the server address with the address of the sender of this packet.
@@ -256,12 +256,24 @@ bool RoomMember::IsConnected() const {
     return state == State::Joining || state == State::Joined;
 }
 
+void RoomMember::CloseConnection() {
+    peer->Shutdown(300);
+    member_information.clear();
+    nickname = "";
+    mac_address = {};
+    room_information = {};
+
+    chat_queue.clear();
+    beacon_queue.clear();
+    data_queue.clear();
+}
+
 void RoomMember::Leave() {
     ASSERT_MSG(receive_thread != nullptr, "Must be in a room to leave it.");
 
     {
         std::lock_guard<std::mutex> lock(network_mutex);
-        peer->Shutdown(300);
+        CloseConnection();
         state = State::Idle;
     }
 
