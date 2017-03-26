@@ -26,3 +26,5 @@ set(HEADERS
 add_library(tunnler STATIC ${SRCS} ${HEADERS})
 #add_executable(tunnler ${SRCS} ${HEADERS})
 target_link_libraries(tunnler RakNetLibStatic)
+
+add_subdirectory(src/samples)
