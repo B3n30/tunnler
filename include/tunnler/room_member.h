@@ -135,7 +135,7 @@ private:
      * Extracts a chat entry from a received RakNet packet and adds it to the chat queue.
      * @param packet The RakNet packet that was received.
      */
-    void HandleChatPackets(const RakNet::Packet* packet);
+    void HandleChatPacket(const RakNet::Packet* packet);
 
     /**
      * Extracts a WifiPacket from a received RakNet packet and adds it to the proper queue.

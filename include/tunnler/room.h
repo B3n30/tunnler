@@ -37,6 +37,14 @@ public:
         RakNet::AddressOrGUID network_address; ///< The network address of the remote peer.
     };
 
+    struct FindNetworkAddress : std::unary_function<Member, bool> {
+        RakNet::AddressOrGUID network_address;
+        FindNetworkAddress(RakNet::AddressOrGUID network_address):network_address(network_address) { }
+        bool operator()(Member const& member) const {
+            return member.network_address == network_address;
+        }
+    };
+
     using MemberList = std::vector<Member>;
 
     Room(): random_gen(std::random_device()()) { }
@@ -80,6 +88,13 @@ private:
      * that the client will use for the remainder of the connection.
      */
     void HandleJoinRequest(const RakNet::Packet* packet);
+
+    /**
+     * Adds the senders nickname to a chat message and broadcasts this packet
+     * to all members including the sender.
+     * @param packet The packet containing the message
+     */
+    void HandleChatPacket(const RakNet::Packet* packet);
 
     /**
      * Sends the information about the room, along with the list of members

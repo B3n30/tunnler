@@ -78,6 +78,25 @@ void Room::HandleJoinRequest(const RakNet::Packet* packet) {
     SendJoinSuccess(member);
 }
 
+void Room::HandleChatPacket(const RakNet::Packet* packet) {
+    RakNet::BitStream in_stream(packet->data, packet->length, false);
+
+    in_stream.IgnoreBytes(sizeof(RakNet::MessageID));
+    RakNet::RakString message;
+    in_stream.Read(message);
+    const auto sending_member = std::find_if(members.begin(), members.end(), FindNetworkAddress(packet->systemAddress));
+    if (sending_member == members.end())    // Sender is not a joined member
+        return;
+    RakNet::RakString nickname = sending_member->nickname.c_str();
+    RakNet::BitStream out_stream;
+    
+    out_stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_CHAT));
+    out_stream.Write(nickname);
+    out_stream.Write(message);
+    server->Send(&out_stream,
+                  LOW_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+}
+
 void Room::ServerLoop() {
     while (state != State::Closed) {
         RakNet::Packet* packet = nullptr;
@@ -100,11 +119,8 @@ void Room::ServerLoop() {
                              HIGH_PRIORITY, RELIABLE, 0, packet->systemAddress, true);
                 break;
             case ID_ROOM_CHAT:
-                // Received a chat packet, broadcast it to everyone including the sender.
-                // TODO(B3N30): Maybe change this to a loop over `members`, since we only want to
-                // send this data to the people who have actually joined the room.
-                server->Send(reinterpret_cast<char*>(packet->data), packet->length,
-                             LOW_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+                HandleChatPacket(packet);
+
                 break;
             default:
                 break;
