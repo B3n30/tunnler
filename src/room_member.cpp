@@ -28,7 +28,7 @@ RoomMember::~RoomMember() {
     RakNet::RakPeerInterface::DestroyInstance(peer);
 }
 
-void RoomMember::HandleChatPackets(const RakNet::Packet* packet) {
+void RoomMember::HandleChatPacket(const RakNet::Packet* packet) {
     RakNet::BitStream stream(packet->data, packet->length, false);
 
     // Ignore the first byte, which is the message id.
@@ -39,10 +39,13 @@ void RoomMember::HandleChatPackets(const RakNet::Packet* packet) {
     stream.Read(nickname);
     chat_entry.nickname.assign(nickname.C_String(), nickname.GetLength());
     RakNet::RakString message;
+    stream.Read(message);
     chat_entry.message.assign(message.C_String(),message.GetLength());
 
-    std::lock_guard<std::mutex> lock(chat_mutex);
-    chat_queue.emplace_back(std::move(chat_entry));
+    {
+        std::lock_guard<std::mutex> lock(chat_mutex);
+        chat_queue.emplace_back(std::move(chat_entry));
+    }
 }
 
 void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
@@ -164,8 +167,7 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
 void RoomMember::SendChatMessage(const std::string& message) {
     RakNet::BitStream stream;
 
-    RakNet::RakString nickname = this->nickname.c_str();
-    stream.Write(nickname);
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_CHAT));
     RakNet::RakString sendable_message = message.c_str();
     stream.Write(sendable_message);
 
@@ -211,7 +213,7 @@ void RoomMember::ReceiveLoop() {
         while (packet = peer->Receive()) {
             switch (packet->data[0]) {
             case ID_ROOM_CHAT:
-                HandleChatPackets(packet);
+                HandleChatPacket(packet);
                 break;
             case ID_ROOM_WIFI_PACKET:
                 HandleWifiPackets(packet);

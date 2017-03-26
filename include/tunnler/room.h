@@ -82,6 +82,13 @@ private:
     void HandleJoinRequest(const RakNet::Packet* packet);
 
     /**
+     * Adds the sender information to a chat message and broadcasts this packet
+     * to all members including the sender.
+     * @param packet The packet containing the message
+     */
+    void HandleChatPacket(const RakNet::Packet* packet);
+
+    /**
      * Sends the information about the room, along with the list of members
      * to every connected client in the room.
      * The packet has the structure:
