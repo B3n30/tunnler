@@ -116,7 +116,7 @@ public:
     void RegisterOnFrameReceived(std::function<void()> callback) { OnFrameReceived = callback; };
 
     /**
-     * Registers a function to call, when WifiPackets were received
+     * unregisters the callback function, when WifiPackets were received
      */
     void UnregisterOnFrameReceived() { OnFrameReceived = nullptr; };
 
