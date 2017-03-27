@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -110,6 +111,16 @@ public:
     int GetPing() const;
 
     /**
+     * Registers a function to call, when WifiPackets were received
+     */
+    void RegisterOnFrameReceived(std::function<void()> callback) { OnFrameReceived = callback; };
+
+    /**
+     * Registers a function to call, when WifiPackets were received
+     */
+    void UnregisterOnFrameReceived() { OnFrameReceived = nullptr; };
+
+    /**
      * Attempts to join a room at the specified address and port, using the specified nickname.
      * This may fail if the username is already taken.
      */
@@ -165,6 +176,8 @@ private:
     std::deque<WifiPacket> data_queue;   ///< List of all received 802.11 frames with type `Data`
     std::mutex beacon_mutex;             ///< Mutex to protect access to the beacons queue.
     std::deque<WifiPacket> beacon_queue; ///< List of all received 802.11 frames with type `Beacon`
+
+    std::function<void()> OnFrameReceived; ///< Callback fro new frames
 
     RakNet::SystemAddress server_address; ///< Address of the server we're connected to.
 

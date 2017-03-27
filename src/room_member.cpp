@@ -17,6 +17,7 @@
 
 RoomMember::RoomMember() {
     peer = RakNet::RakPeerInterface::GetInstance();
+    OnFrameReceived = nullptr;
 }
 
 RoomMember::~RoomMember() {
@@ -69,6 +70,8 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
         std::lock_guard<std::mutex> lock(data_mutex);
         EmplaceBackAndCheckSize(data_queue, MaxDataQueueSize);
     }
+    if(OnFrameReceived)
+        OnFrameReceived();      // Signal the user that there are new frames
 }
 
 void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
