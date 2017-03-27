@@ -22,6 +22,9 @@ void Room::Create(const std::string& name, const std::string& server_address, ui
 
     state = State::Open;
 
+    room_information.name = name;
+    room_information.member_slots = MaxConcurrentConnections;
+
     // Start a network thread to Receive packets in a loop.
     room_thread = std::make_unique<std::thread>(&Room::ServerLoop, this);
 }
@@ -34,6 +37,7 @@ void Room::Destroy() {
         server->Shutdown(300);
         RakNet::RakPeerInterface::DestroyInstance(server);
     }
+    room_information = {};
     server = nullptr;
 }
 
