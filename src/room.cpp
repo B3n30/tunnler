@@ -35,6 +35,7 @@ void Room::Destroy() {
         server->Shutdown(300);
         RakNet::RakPeerInterface::DestroyInstance(server);
     }
+    room_information = {};
     server = nullptr;
 }
 
