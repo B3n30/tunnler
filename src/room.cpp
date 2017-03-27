@@ -193,7 +193,7 @@ void Room::BroadcastRoomInformation() {
 
 MacAddress Room::GenerateMacAddress() {
     MacAddress result_mac = NintendoOUI;
-    std::uniform_int_distribution<uint8_t> dis(0x00, 0xFF); //Random byte between 0 and 0xFF
+    std::uniform_int_distribution<> dis(0x00, 0xFF); //Random byte between 0 and 0xFF
     do {
         for (int i = 3; i < result_mac.size(); ++i) {
             result_mac[i] = dis(random_gen);
