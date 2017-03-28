@@ -171,7 +171,7 @@ static void SendJoinRequest(RakNet::RakPeerInterface* peer, const std::string& n
 void RoomMember::ReceiveLoop() {
     // Receive packets while the connection is open
     while (IsConnected()) {
-        RakSleep(1);
+        std::this_thread::sleep_for(sleep_time);
         std::lock_guard<std::mutex> lock(network_mutex);
 
         RakNet::Packet* packet = nullptr;

@@ -81,7 +81,7 @@ void Room::HandleJoinRequest(const RakNet::Packet* packet) {
 
 void Room::ServerLoop() {
     while (state != State::Closed) {
-        RakSleep(1);
+        std::this_thread::sleep_for(sleep_time);
         RakNet::Packet* packet = nullptr;
         while (packet = server->Receive()) {
             switch (packet->data[0]) {
