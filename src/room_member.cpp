@@ -70,8 +70,7 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
         std::lock_guard<std::mutex> lock(data_mutex);
         EmplaceBackAndCheckSize(data_queue, MaxDataQueueSize);
     }
-    if(OnFrameReceived)
-        OnFrameReceived();      // Signal the user that there are new frames
+    invoke(OnFrameReceived);
 }
 
 void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
@@ -100,6 +99,7 @@ void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
         stream.Read(game_name);
         member.game_name.assign(game_name.C_String(), game_name.GetLength());
     }
+    invoke(OnRoomChanged);
 }
 
 void RoomMember::HandleJoinPacket(const RakNet::Packet* packet) {
@@ -152,6 +152,37 @@ void RoomMember::SendWifiPacket(const WifiPacket& wifi_packet) {
     stream.Write((char*)wifi_packet.data.data(), wifi_packet.data.size());
 
     peer->Send(&stream, HIGH_PRIORITY, RELIABLE, 0, server_address, false);
+}
+
+void RoomMember::Register(Callback callback, EventType event_type) {
+    std::lock_guard<std::mutex> lock(callback_mutex);
+
+    auto callbacks = atomic_load(&callback_map.at(event_type));
+    auto new_callbacks = std::make_shared< std::vector<Callback> >();
+    new_callbacks->reserve(callbacks->size()+1);
+    *new_callbacks = callbacks;
+    new_callbacks->push_back(std::move(callback);
+
+    atomic_store(&callback_map.at(event_type), new_callbacks);
+}
+
+void RoomMember::Deregister(Callback callback, EventType event_type) {
+    std::lock_guard<std::mutex> lock(callback_mutex);
+
+    auto callbacks = atomic_load(&callback_map.at(event_type));
+    auto new_callbacks = std::make_shared< std::vector<Callback> >();
+    new_callbacks->reserve(callbacks->size());
+    *new_callbacks = callbacks;
+    auto itr = std::find(new_callbacks->begin(), new_callbacks->end(), callback);
+    new_callbacks->erase(itr);
+
+    atomic_store(&callback_map.at(event_type), new_callbacks);
+}
+
+void RoomMember::Invoke(EventType event_type)
+{
+    auto callbacks = atomic_load(&callback_map.at(event_type));
+    for(auto& callback: *callbacks) (*callback)();
 }
 
 /**

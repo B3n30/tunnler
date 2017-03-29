@@ -8,6 +8,7 @@
 #include <atomic>
 #include <deque>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -23,6 +24,14 @@
 // It also has to be used if you host a game yourself (You'd create both, a Room and a RoomMembership for yourself)
 class RoomMember final {
 public:
+    using Callback = std::shared_ptr<std::function<void()> >;
+
+    enum class EventType {
+        OnFramesReceived,
+        OnMessagesReceived,
+        OnRoomChanged,
+    };
+
     struct MemberInformation {
         std::string nickname;      // Nickname of the member.
         std::string game_name;     // Name of the game they're currently playing, or empty if they're not playing anything.
@@ -111,14 +120,18 @@ public:
     int GetPing() const;
 
     /**
-     * Registers a function to call, when WifiPackets were received
+     * Registers a callback functions to the room member
+     * @param callback The function to call
+     * @param event_type The event on which callback will be called
      */
-    void RegisterOnFrameReceived(std::function<void()> callback) { OnFrameReceived = callback; };
+    void Register(Callback callback, EventType event_type);
 
     /**
-     * unregisters the callback function, when WifiPackets were received
+     * Deregisters a callback function
+     * @param callback The function to call
+     * @param event_type The event on which callback will be called
      */
-    void UnregisterOnFrameReceived() { OnFrameReceived = nullptr; };
+    void Deregister(Callback callback, EventType eventType);
 
     /**
      * Attempts to join a room at the specified address and port, using the specified nickname.
@@ -133,6 +146,10 @@ public:
     void Leave();
 
 private:
+    using CallbackVector = std::shared_ptr<std::vector<Callback> >;
+    std::map<EventType, CallbackVector> callback_map;
+    std::mutex callback_mutex;  //< The mutex used for handling callbacks
+    
     std::atomic<State> state; ///< Current state of the RoomMember.
     MemberList member_information; ///< Information about the clients connected to the same room as us.
     RoomInformation room_information; ///< Information about the room we're connected to.
@@ -160,6 +177,11 @@ private:
      */
     void HandleJoinPacket(const RakNet::Packet* packet);
 
+    /**
+     * Calls all registered callback function, registered with event_type.
+     */
+    void invoke(const EventType event_type);
+
     std::unique_ptr<std::thread> receive_thread; ///< Thread that receives and dispatches network packets
 
     /// Max size of the data queue before the oldest entry is expunged.
@@ -176,8 +198,6 @@ private:
     std::deque<WifiPacket> data_queue;   ///< List of all received 802.11 frames with type `Data`
     std::mutex beacon_mutex;             ///< Mutex to protect access to the beacons queue.
     std::deque<WifiPacket> beacon_queue; ///< List of all received 802.11 frames with type `Beacon`
-
-    std::function<void()> OnFrameReceived; ///< Callback fro new frames
 
     RakNet::SystemAddress server_address; ///< Address of the server we're connected to.
 
