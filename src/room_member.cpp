@@ -157,7 +157,7 @@ RoomMember::Connection RoomMember::Connect(std::function<void()> callback, Event
     std::lock_guard<std::mutex> lock(callback_mutex);
     RoomMember::Connection connection;
     connection.event_type = event_type;
-    connection.callback =  std::shared_ptr<std::function<void()> >(&callback);
+    connection.callback =  std::make_shared<std::function<void()> >(&callback);
     callback_map[event_type].insert(connection.callback);
     return connection;
 }
@@ -172,7 +172,7 @@ void RoomMember::Invoke(EventType event_type)
     CallbackSet callbacks;
     {
         std::lock_guard<std::mutex> lock(callback_mutex);
-        callbacks = callback_map.at(event_type);
+        callbacks = callback_map[event_type];
         
     }
     for(auto const& callback: callbacks)
