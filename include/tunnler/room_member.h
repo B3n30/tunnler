@@ -11,6 +11,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <thread>
 
@@ -24,12 +25,16 @@
 // It also has to be used if you host a game yourself (You'd create both, a Room and a RoomMembership for yourself)
 class RoomMember final {
 public:
-    using Callback = std::shared_ptr<std::function<void()> >;
-
     enum class EventType {
         OnFramesReceived,
         OnMessagesReceived,
         OnRoomChanged,
+        OnStateChanged,
+    };
+
+    struct Connection {
+        EventType event_type;
+        std::shared_ptr<std::function<void()>> callback;
     };
 
     struct MemberInformation {
@@ -124,14 +129,14 @@ public:
      * @param callback The function to call
      * @param event_type The event on which callback will be called
      */
-    void Register(Callback callback, EventType event_type);
+    Connection Connect(std::function<void()> callback, EventType event_type);
 
     /**
      * Deregisters a callback function
      * @param callback The function to call
      * @param event_type The event on which callback will be called
      */
-    void Deregister(Callback callback, EventType eventType);
+    void Disconnect(Connection connection);
 
     /**
      * Attempts to join a room at the specified address and port, using the specified nickname.
@@ -146,8 +151,8 @@ public:
     void Leave();
 
 private:
-    using CallbackVector = std::shared_ptr<std::vector<Callback> >;
-    std::map<EventType, CallbackVector> callback_map;
+    using CallbackSet = std::set<std::shared_ptr<std::function<void()>> >;
+    std::map<EventType, CallbackSet> callback_map;
     std::mutex callback_mutex;  //< The mutex used for handling callbacks
     
     std::atomic<State> state; ///< Current state of the RoomMember.
@@ -180,7 +185,7 @@ private:
     /**
      * Calls all registered callback function, registered with event_type.
      */
-    void invoke(const EventType event_type);
+    void Invoke(const EventType event_type);
 
     std::unique_ptr<std::thread> receive_thread; ///< Thread that receives and dispatches network packets
 
