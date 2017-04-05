@@ -84,8 +84,10 @@ void Room::HandleChatPacket(const RakNet::Packet* packet) {
     in_stream.IgnoreBytes(sizeof(RakNet::MessageID));
     RakNet::RakString message;
     in_stream.Read(message);
-    const auto sending_member = std::find_if(members.begin(), members.end(),
-                                            [&](const Member member) {return member.network_address == packet->systemAddress;});
+    auto CompareNetworkAddress = [&](const Member member) -> bool {
+        return member.network_address == packet->systemAddress;
+    };
+    const auto sending_member = std::find_if(members.begin(), members.end(), CompareNetworkAddress);
 
     if (sending_member == members.end())    // Sender is not a joined member
         return;
