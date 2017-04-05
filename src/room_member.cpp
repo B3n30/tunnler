@@ -15,7 +15,7 @@
 #include "BitStream.h"
 #include "RakNetTypes.h"
 
-RoomMember::RoomMember() : state(State::Idle) {
+RoomMember::RoomMember() {
     peer = RakNet::RakPeerInterface::GetInstance();
 }
 

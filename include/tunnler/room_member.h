@@ -122,7 +122,7 @@ public:
     void Leave();
 
 private:
-    std::atomic<State> state; ///< Current state of the RoomMember.
+    std::atomic<State> state{State::Idle}; ///< Current state of the RoomMember.
     MemberList member_information; ///< Information about the clients connected to the same room as us.
     RoomInformation room_information; ///< Information about the room we're connected to.
 
