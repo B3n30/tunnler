@@ -39,7 +39,7 @@ public:
 
     using MemberList = std::vector<Member>;
 
-    Room(): random_gen(std::random_device()()) { }
+    Room(): state(State::Closed), random_gen(std::random_device()()) { }
     ~Room() { }
 
     /**
