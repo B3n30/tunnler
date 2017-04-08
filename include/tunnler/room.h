@@ -62,7 +62,7 @@ public:
      */
     void Destroy();
 private:
-    std::atomic<State> state; ///< Current state of the room.
+    std::atomic<State> state{State::Closed}; ///< Current state of the room.
     RoomInformation room_information; ///< Information about this room.
     MemberList members; ///< Information about the members of this room.
     std::unique_ptr<std::thread> room_thread; ///< Thread that receives and dispatches network packets
