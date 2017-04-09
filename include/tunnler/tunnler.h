@@ -6,6 +6,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -14,6 +15,10 @@ using MacAddress = std::array<uint8_t, 6>;
 
 /// A special MAC address that tells the room we're joining to assign us a MAC address automatically.
 const MacAddress NoPreferredMac = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
+/// This is the time the loops in Room::ServerLoop and RoomMember::ReceiveLoop sleep to keep the cpu usage low.
+///  It should be as low as possible, to keep the response time low.
+const std::chrono::milliseconds sleep_time(1);
 
 /// Information about the received WiFi packets.
 /// Acts as our own 802.11 header.
