@@ -42,8 +42,10 @@ void RoomMember::HandleChatPacket(const RakNet::Packet* packet) {
     stream.Read(message);
     chat_entry.message.assign(message.C_String(),message.GetLength());
 
-    std::lock_guard<std::mutex> lock(chat_mutex);
-    chat_queue.emplace_back(std::move(chat_entry));
+    {
+        std::lock_guard<std::mutex> lock(chat_mutex);
+        chat_queue.emplace_back(std::move(chat_entry));
+    }
 }
 
 void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {

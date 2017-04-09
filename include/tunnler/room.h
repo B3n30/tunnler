@@ -82,7 +82,7 @@ private:
     void HandleJoinRequest(const RakNet::Packet* packet);
 
     /**
-     * Adds the senders nickname to a chat message and broadcasts this packet
+     * Adds the sender information to a chat message and broadcasts this packet
      * to all members including the sender.
      * @param packet The packet containing the message
      */

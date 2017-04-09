@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include "tunnler/assert.h"
 #include "tunnler/room.h"
 #include "tunnler/room_message_types.h"
 
@@ -89,16 +90,15 @@ void Room::HandleChatPacket(const RakNet::Packet* packet) {
     };
     const auto sending_member = std::find_if(members.begin(), members.end(), CompareNetworkAddress);
 
-    if (sending_member == members.end())    // Sender is not a joined member
-        return;
+    ASSERT_MSG(sending_member == members.end(),"Received a chat message from a unknown sender");
+
     RakNet::RakString nickname = sending_member->nickname.c_str();
     RakNet::BitStream out_stream;
     
     out_stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_CHAT));
     out_stream.Write(nickname);
     out_stream.Write(message);
-    server->Send(&out_stream,
-                LOW_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+    server->Send(&out_stream, LOW_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 }
 
 void Room::ServerLoop() {
