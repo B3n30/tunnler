@@ -29,6 +29,26 @@ RoomMember::~RoomMember() {
     RakNet::RakPeerInterface::DestroyInstance(peer);
 }
 
+void RoomMember::HandleChatPacket(const RakNet::Packet* packet) {
+    RakNet::BitStream stream(packet->data, packet->length, false);
+
+    // Ignore the first byte, which is the message id.
+    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+
+    ChatEntry chat_entry{};
+    RakNet::RakString nickname;
+    stream.Read(nickname);
+    chat_entry.nickname.assign(nickname.C_String(), nickname.GetLength());
+    RakNet::RakString message;
+    stream.Read(message);
+    chat_entry.message.assign(message.C_String(),message.GetLength());
+
+    {
+        std::lock_guard<std::mutex> lock(chat_mutex);
+        chat_queue.emplace_back(std::move(chat_entry));
+    }
+}
+
 void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
     WifiPacket wifi_packet{};
     
@@ -112,6 +132,13 @@ void RoomMember::HandleJoinPacket(const RakNet::Packet* packet) {
     stream.Read(mac_address);
 }
 
+std::deque<RoomMember::ChatEntry> RoomMember::PopChatEntries() {
+    std::lock_guard<std::mutex> lock(chat_mutex);
+    std::deque<ChatEntry> result_queue(std::move(chat_queue));
+    chat_queue.clear();
+    return result_queue;
+}
+
 std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, const MacAddress& mac_address) {
     auto FilterAndPopPackets = [&](std::deque<WifiPacket>& source_queue) {
         std::deque<WifiPacket> result_queue;
@@ -138,6 +165,16 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
         std::lock_guard<std::mutex> lock(data_mutex);
         return FilterAndPopPackets(data_queue);
     }
+}
+
+void RoomMember::SendChatMessage(const std::string& message) {
+    RakNet::BitStream stream;
+
+    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_CHAT));
+    RakNet::RakString sendable_message = message.c_str();
+    stream.Write(sendable_message);
+
+    peer->Send(&stream, LOW_PRIORITY, RELIABLE_ORDERED, 0, server_address, false);
 }
 
 void RoomMember::SendWifiPacket(const WifiPacket& wifi_packet) {
@@ -206,7 +243,7 @@ void RoomMember::ReceiveLoop() {
         while (packet = peer->Receive()) {
             switch (packet->data[0]) {
             case ID_ROOM_CHAT:
-                //FIXME
+                HandleChatPacket(packet);
                 break;
             case ID_ROOM_WIFI_PACKET:
                 HandleWifiPackets(packet);
