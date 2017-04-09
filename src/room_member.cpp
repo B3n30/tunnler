@@ -69,6 +69,7 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
         std::lock_guard<std::mutex> lock(data_mutex);
         EmplaceBackAndCheckSize(data_queue, MaxDataQueueSize);
     }
+    Invoke(EventType::OnFramesReceived);
 }
 
 void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
@@ -97,6 +98,7 @@ void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
         stream.Read(game_name);
         member.game_name.assign(game_name.C_String(), game_name.GetLength());
     }
+    Invoke(EventType::OnRoomChanged);
 }
 
 void RoomMember::HandleJoinPacket(const RakNet::Packet* packet) {
@@ -151,6 +153,32 @@ void RoomMember::SendWifiPacket(const WifiPacket& wifi_packet) {
     peer->Send(&stream, HIGH_PRIORITY, RELIABLE, 0, server_address, false);
 }
 
+RoomMember::Connection RoomMember::Connect(std::function<void()> callback, EventType event_type) {
+    std::lock_guard<std::mutex> lock(callback_mutex);
+    RoomMember::Connection connection;
+    connection.event_type = event_type;
+    connection.callback =  std::make_shared<std::function<void()> >(&callback);
+    callback_map[event_type].insert(connection.callback);
+    return connection;
+}
+
+void RoomMember::Disconnect(Connection connection) {
+    std::lock_guard<std::mutex> lock(callback_mutex);
+    callback_map[connection.event_type].erase(connection.callback);
+}
+
+void RoomMember::Invoke(EventType event_type)
+{
+    CallbackSet callbacks;
+    {
+        std::lock_guard<std::mutex> lock(callback_mutex);
+        callbacks = callback_map[event_type];
+        
+    }
+    for(auto const& callback: callbacks)
+        (*callback)();
+}
+
 /**
  * Sends a request to the server, asking for permission to join a room with the specified nickname and preferred mac.
  * @params nickname The desired nickname.
@@ -187,10 +215,12 @@ void RoomMember::ReceiveLoop() {
             case ID_ROOM_NAME_COLLISION:
                 state = State::NameCollision;
                 peer->Shutdown(300);
+                Invoke(EventType::OnStateChanged);
                 break;
             case ID_ROOM_MAC_COLLISION:
                 state = State::MacCollision;
                 peer->Shutdown(300);
+                Invoke(EventType::OnStateChanged);
                 break;
             case ID_ROOM_JOIN_SUCCESS:
                 // The join request was successful, we are now in the room.
@@ -198,28 +228,34 @@ void RoomMember::ReceiveLoop() {
                 ASSERT_MSG(GetMemberInformation().size() > 0, "We have not yet received member information.");
                 HandleJoinPacket(packet);    // Get the MAC Address for the client
                 state = State::Joined;
+                Invoke(EventType::OnStateChanged);
                 break;
             case ID_DISCONNECTION_NOTIFICATION:
                 // Connection lost normally
                 state = State::Idle;
                 peer->Shutdown(300);
+                Invoke(EventType::OnStateChanged);
                 break;
             case ID_INCOMPATIBLE_PROTOCOL_VERSION:
                 state = State::WrongVersion;
                 peer->Shutdown(300);
+                Invoke(EventType::OnStateChanged);
                 break;
             case ID_CONNECTION_ATTEMPT_FAILED:
                 state = State::Error;
                 peer->Shutdown(300);
+                Invoke(EventType::OnStateChanged);
                 break;
             case ID_NO_FREE_INCOMING_CONNECTIONS:
                 state = State::RoomFull;
                 peer->Shutdown(300);
+                Invoke(EventType::OnStateChanged);
                 break;
             case ID_CONNECTION_LOST:
                 // Couldn't deliver a reliable packet, the other system was abnormally terminated
                 state = State::LostConnection;
                 peer->Shutdown(300);
+                Invoke(EventType::OnStateChanged);
                 break;
             case ID_CONNECTION_REQUEST_ACCEPTED:
                 // Update the server address with the address of the sender of this packet.
@@ -242,6 +278,7 @@ void RoomMember::Join(const std::string& nickname, const std::string& server, ui
     RakNet::ConnectionAttemptResult result = peer->Connect(server.c_str(), server_port, nullptr, 0);
     if (result != RakNet::CONNECTION_ATTEMPT_STARTED) {
         state = State::Error;
+        Invoke(EventType::OnStateChanged);
         return;
     }
 
@@ -263,6 +300,7 @@ void RoomMember::Leave() {
         std::lock_guard<std::mutex> lock(network_mutex);
         peer->Shutdown(300);
         state = State::Idle;
+        Invoke(EventType::OnStateChanged);
     }
 
     receive_thread->join();
