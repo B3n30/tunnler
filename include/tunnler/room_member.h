@@ -155,6 +155,12 @@ private:
      */
     void HandleJoinPacket(const RakNet::Packet* packet);
 
+    /**
+     * Closes the connection and sets the variables to a clean state for a new connection.
+     * Must be called, when connection to server is closed.
+     */
+    void CloseConnection();
+
     std::unique_ptr<std::thread> receive_thread; ///< Thread that receives and dispatches network packets
 
     /// Max size of the data queue before the oldest entry is expunged.
