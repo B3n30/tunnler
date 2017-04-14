@@ -9,6 +9,7 @@
 #include "tunnler/room_message_types.h"
 
 #include "BitStream.h"
+#include "RakSleep.h"
 
 /// Maximum number of concurrent connections allowed to this room.
 static const uint32_t MaxConcurrentConnections = 10;
@@ -108,6 +109,7 @@ void Room::HandleChatPacket(const RakNet::Packet* packet) {
 
 void Room::ServerLoop() {
     while (state != State::Closed) {
+        std::this_thread::sleep_for(sleep_time);
         RakNet::Packet* packet = nullptr;
         while (packet = server->Receive()) {
             switch (packet->data[0]) {
