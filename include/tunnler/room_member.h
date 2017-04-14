@@ -85,6 +85,16 @@ public:
     bool IsConnected() const;
 
     /**
+     * Returns to nickname of the member.
+     */
+    const std::string& GetNickname() const { return nickname; }
+
+    /**
+     * Returns the mac address of the member.
+     */
+    const MacAddress& GetMacAddress() const { return mac_address; }
+
+    /**
      * Returns information about the members in the room we're currently connected to.
      */
     const MemberList& GetMemberInformation() const { return member_information; }
@@ -213,6 +223,8 @@ private:
     std::deque<WifiPacket> data_queue;   ///< List of all received 802.11 frames with type `Data`
     std::mutex beacon_mutex;             ///< Mutex to protect access to the beacons queue.
     std::deque<WifiPacket> beacon_queue; ///< List of all received 802.11 frames with type `Beacon`
+    std::mutex management_mutex;             ///< Mutex to protect access to the management queue.
+    std::deque<WifiPacket> management_queue; ///< List of all received 802.11 frames with type `Management`
 
     RakNet::SystemAddress server_address; ///< Address of the server we're connected to.
 

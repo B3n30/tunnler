@@ -47,6 +47,7 @@ void RoomMember::HandleChatPacket(const RakNet::Packet* packet) {
         std::lock_guard<std::mutex> lock(chat_mutex);
         chat_queue.emplace_back(std::move(chat_entry));
     }
+    Invoke(EventType::OnMessagesReceived);
 }
 
 void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
@@ -83,12 +84,22 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
 
     wifi_packet.data = std::move(data);
 
-    if (type == WifiPacket::PacketType::Beacon) {
+    switch (type) {
+    case WifiPacket::PacketType::Beacon: {
         std::lock_guard<std::mutex> lock(beacon_mutex);
         EmplaceBackAndCheckSize(beacon_queue, MaxBeaconQueueSize);
-    } else {  // For now we will treat all non-beacons as data packets
+        }
+        break;
+    case WifiPacket::PacketType::Data: {
         std::lock_guard<std::mutex> lock(data_mutex);
-        EmplaceBackAndCheckSize(data_queue, MaxDataQueueSize);
+        EmplaceBackAndCheckSize(data_queue, MaxBeaconQueueSize);
+        }
+        break;
+    case WifiPacket::PacketType::Management: {
+        std::lock_guard<std::mutex> lock(management_mutex);
+        EmplaceBackAndCheckSize(management_queue, MaxBeaconQueueSize);
+        }
+        break;
     }
     Invoke(EventType::OnFramesReceived);
 }
@@ -158,12 +169,19 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
         return result_queue;
     };
 
-    if (type == WifiPacket::PacketType::Beacon) {
+    switch (type) {
+    case WifiPacket::PacketType::Beacon: {
         std::lock_guard<std::mutex> lock(beacon_mutex);
         return FilterAndPopPackets(beacon_queue);
-    } else {  // For now we will treat all non-beacons as data packets
+        }
+    case WifiPacket::PacketType::Data: {
         std::lock_guard<std::mutex> lock(data_mutex);
         return FilterAndPopPackets(data_queue);
+        }
+    case WifiPacket::PacketType::Management: {
+        std::lock_guard<std::mutex> lock(management_mutex);
+        return FilterAndPopPackets(management_queue);
+        }
     }
 }
 
@@ -195,7 +213,7 @@ RoomMember::Connection RoomMember::Connect(std::function<void()> callback, Event
     std::lock_guard<std::mutex> lock(callback_mutex);
     RoomMember::Connection connection;
     connection.event_type = event_type;
-    connection.callback =  std::make_shared<std::function<void()> >(&callback);
+    connection.callback =  std::make_shared<std::function<void()> >(callback);
     callback_map[event_type].insert(connection.callback);
     return connection;
 }

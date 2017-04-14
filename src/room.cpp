@@ -98,7 +98,7 @@ void Room::HandleChatPacket(const RakNet::Packet* packet) {
     };
     const auto sending_member = std::find_if(members.begin(), members.end(), CompareNetworkAddress);
 
-    ASSERT_MSG(sending_member == members.end(),"Received a chat message from a unknown sender");
+    ASSERT_MSG(sending_member != members.end(),"Received a chat message from a unknown sender");
 
     RakNet::RakString nickname = sending_member->nickname.c_str();
     RakNet::BitStream out_stream;

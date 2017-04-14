@@ -25,7 +25,8 @@ const std::chrono::milliseconds sleep_time(1);
 struct WifiPacket {
     enum class PacketType {
         Beacon,
-        Data
+        Data,
+        Management
     };
     PacketType type;                    ///< The type of 802.11 frame, Beacon / Data.
     std::vector<uint8_t> data;          ///< Raw 802.11 frame data, starting at the management frame header for management frames.
