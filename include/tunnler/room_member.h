@@ -18,9 +18,6 @@
 #include "tunnler/room.h"
 #include "tunnler/tunnler.h"
 
-#include "RakNetStatistics.h"
-#include "RakPeerInterface.h"
-
 // This is what a client [person joining a server] would use.
 // It also has to be used if you host a game yourself (You'd create both, a Room and a RoomMembership for yourself)
 class RoomMember final {
@@ -210,12 +207,17 @@ private:
 
     /// Max size of the data queue before the oldest entry is expunged.
     /// TODO(Ben): Find a good value for this
-    static const size_t MaxDataQueueSize = 100;
+    static const size_t MaxDataQueueSize = 3;
 
     /// Max size of the beacon queue before the oldest entry is expunged.
     /// This number was empirically calculated, keeping too many frames will
     // cause an overflow in UDS::RecvBeaconBroadcastData.
     static const size_t MaxBeaconQueueSize = 25;
+
+    /// Max size of the beacon queue before the oldest entry is expunged.
+    /// This number was empirically calculated, keeping too many frames will
+    // cause an overflow in UDS::RecvBeaconBroadcastData.
+    static const size_t MaxManagementQueueSize = 25;
 
     std::mutex chat_mutex;             ///< Mutex to protect access to the chat queue.
     std::deque<ChatEntry> chat_queue;    ///< List of all chat messages received since last PopChatEntries was called

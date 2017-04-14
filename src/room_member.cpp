@@ -13,8 +13,8 @@
 #include "tunnler/assert.h"
 
 #include "BitStream.h"
-#include "RakNetTypes.h"
-#include "RakSleep.h"
+#include "RakPeerInterface.h"
+#include "RakString.h"
 
 RoomMember::RoomMember() {
     peer = RakNet::RakPeerInterface::GetInstance();
@@ -97,7 +97,7 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
         break;
     case WifiPacket::PacketType::Management: {
         std::lock_guard<std::mutex> lock(management_mutex);
-        EmplaceBackAndCheckSize(management_queue, MaxBeaconQueueSize);
+        EmplaceBackAndCheckSize(management_queue, MaxManagementQueueSize);
         }
         break;
     }
