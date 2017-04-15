@@ -205,12 +205,13 @@ static void SendJoinRequest(RakNet::RakPeerInterface* peer, const std::string& n
 }
 
 void RoomMember::ReceiveLoop() {
+    bool shutdown = false;
     // Receive packets while the connection is open
     while (IsConnected()) {
         std::lock_guard<std::mutex> lock(network_mutex);
 
         RakNet::Packet* packet = nullptr;
-        while (packet = peer->Receive()) {
+        while ((packet = peer->Receive()) && !shutdown) {
             switch (packet->data[0]) {
             case ID_ROOM_CHAT:
                 HandleChatPacket(packet);
@@ -223,11 +224,11 @@ void RoomMember::ReceiveLoop() {
                 break;
             case ID_ROOM_NAME_COLLISION:
                 state = State::NameCollision;
-                peer->Shutdown(300);
+                shutdown = true;
                 break;
             case ID_ROOM_MAC_COLLISION:
                 state = State::MacCollision;
-                peer->Shutdown(300);
+                shutdown = true;
                 break;
             case ID_ROOM_JOIN_SUCCESS:
                 // The join request was successful, we are now in the room.
@@ -239,24 +240,24 @@ void RoomMember::ReceiveLoop() {
             case ID_DISCONNECTION_NOTIFICATION:
                 // Connection lost normally
                 state = State::Idle;
-                peer->Shutdown(300);
+                shutdown = true;
                 break;
             case ID_INCOMPATIBLE_PROTOCOL_VERSION:
                 state = State::WrongVersion;
-                peer->Shutdown(300);
+                shutdown = true;
                 break;
             case ID_CONNECTION_ATTEMPT_FAILED:
                 state = State::Error;
-                peer->Shutdown(300);
+                shutdown = true;
                 break;
             case ID_NO_FREE_INCOMING_CONNECTIONS:
                 state = State::RoomFull;
-                peer->Shutdown(300);
+                shutdown = true;
                 break;
             case ID_CONNECTION_LOST:
                 // Couldn't deliver a reliable packet, the other system was abnormally terminated
                 state = State::LostConnection;
-                peer->Shutdown(300);
+                shutdown = true;
                 break;
             case ID_CONNECTION_REQUEST_ACCEPTED:
                 // Update the server address with the address of the sender of this packet.
@@ -270,9 +271,15 @@ void RoomMember::ReceiveLoop() {
             peer->DeallocatePacket(packet);
         }
     }
+    peer->Shutdown(300);
 };
 
 void RoomMember::Join(const std::string& nickname, const std::string& server, uint16_t server_port, uint16_t client_port) {
+    if (receive_thread) {
+        // We are still joined
+        Leave();
+    }
+
     RakNet::SocketDescriptor socket(client_port, 0);
     peer->Startup(1, &socket, 1);
 
@@ -295,13 +302,8 @@ bool RoomMember::IsConnected() const {
 
 void RoomMember::Leave() {
     ASSERT_MSG(receive_thread != nullptr, "Must be in a room to leave it.");
-
-    {
-        std::lock_guard<std::mutex> lock(network_mutex);
-        peer->Shutdown(300);
-        state = State::Idle;
-    }
-
+    state = State::Leaving;
     receive_thread->join();
     receive_thread.reset();
+    state = State::Idle;
 }

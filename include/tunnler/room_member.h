@@ -33,6 +33,7 @@ public:
         Error,    // Some error [permissions to network device missing or something]
         Joining,  // The client is attempting to join a room.
         Joined,   // The client is connected to the room and is ready to send/receive packets.
+        Leaving,    // The client is about to close the connection
 
         // Reasons for connection loss
         LostConnection,
