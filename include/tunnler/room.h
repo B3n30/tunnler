@@ -14,8 +14,8 @@
 #include <vector>
 
 #include "tunnler/tunnler.h"
-
 #include "RakPeerInterface.h"
+#include "BitStream.h"
 
 const uint16_t DefaultRoomPort = 1234;
 
