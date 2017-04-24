@@ -10,7 +10,6 @@
 #include "tunnler/room_message_types.h"
 
 #include "BitStream.h"
-#include "RakSleep.h"
 
 /// Maximum number of concurrent connections allowed to this room.
 static const uint32_t MaxConcurrentConnections = 10;

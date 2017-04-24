@@ -18,9 +18,6 @@
 #include "tunnler/room.h"
 #include "tunnler/tunnler.h"
 
-#include "RakNetStatistics.h"
-#include "RakPeerInterface.h"
-
 // This is what a client [person joining a server] would use.
 // It also has to be used if you host a game yourself (You'd create both, a Room and a RoomMembership for yourself)
 class RoomMember final {

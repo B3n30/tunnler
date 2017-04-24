@@ -13,8 +13,6 @@
 #include "tunnler/assert.h"
 
 #include "BitStream.h"
-#include "RakNetTypes.h"
-#include "RakSleep.h"
 
 RoomMember::RoomMember() {
     peer = RakNet::RakPeerInterface::GetInstance();
