@@ -5,11 +5,11 @@
 
 #pragma once
 
-#include "MessageIdentifiers.h"
+typedef unsigned char MessageID;
 
 enum RoomMessageTypes
 {
-    ID_ROOM_JOIN_REQUEST = ID_USER_PACKET_ENUM + 1,
+    ID_ROOM_JOIN_REQUEST,
     ID_ROOM_JOIN_SUCCESS,
     ID_ROOM_INFORMATION,
     ID_ROOM_SET_GAME_NAME,

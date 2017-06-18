@@ -4,18 +4,20 @@ project (tunnler CXX)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(RAKNET_PREFIX "${PROJECT_SOURCE_DIR}/externals/RakNet")
-include_directories(${RAKNET_PREFIX}/Source)
-add_subdirectory(${RAKNET_PREFIX})
+set(ENET_PREFIX "${PROJECT_SOURCE_DIR}/externals/enet")
+include_directories(${ENET_PREFIX}/include)
+add_subdirectory(${ENET_PREFIX})
 
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 set(SRCS
+    src/bytestream.cpp
     src/room.cpp
     src/room_member.cpp
     )
 
 set(HEADERS
+    include/tunnler/bytestream.h
     include/tunnler/room.h
     include/tunnler/room_member.h
     include/tunnler/room_message_types.h
@@ -23,4 +25,4 @@ set(HEADERS
     )
 
 add_library(tunnler STATIC ${SRCS} ${HEADERS})
-target_link_libraries(tunnler RakNetLibStatic)
+target_link_libraries(tunnler enet)

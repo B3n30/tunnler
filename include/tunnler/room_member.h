@@ -14,9 +14,7 @@
 
 #include "tunnler/room.h"
 #include "tunnler/tunnler.h"
-
-#include "RakNetStatistics.h"
-#include "RakPeerInterface.h"
+#include "enet/enet.h"
 
 // This is what a client [person joining a server] would use.
 // It also has to be used if you host a game yourself (You'd create both, a Room and a RoomMembership for yourself)
@@ -38,11 +36,8 @@ public:
         LostConnection,
 
         // Reasons why connection was rejected
-        RoomFull,        // The room is full and is not accepting any more connections.
-        RoomDestroyed,   // Unknown reason, server not reachable or not responding for w/e reason
         NameCollision,   // Somebody is already using this name
         MacCollision,    // Somebody is already using that mac-address
-        WrongVersion,    // The RakNet version does not match.
     };
 
     /// Represents a chat message.
@@ -126,34 +121,37 @@ private:
     MemberList member_information; ///< Information about the clients connected to the same room as us.
     RoomInformation room_information; ///< Information about the room we're connected to.
 
-    RakNet::RakPeerInterface* peer; ///< RakNet network interface.
+    ENetHost* client; ///< ENet network interface.
+    ENetPeer* server; ///< The server peer the client is connected to
 
     std::string nickname; ///< The nickname of this member.
     MacAddress mac_address; ///< The mac_address of this member.
 
     /**
-     * Extracts a chat entry from a received RakNet packet and adds it to the chat queue.
+     * Extracts a chat entry from a received ENet packet and adds it to the chat queue.
      * @param packet The RakNet packet that was received.
      */
-    void HandleChatPacket(const RakNet::Packet* packet);
+    void HandleChatPacket(const ENetEvent* packet);
 
     /**
-     * Extracts a WifiPacket from a received RakNet packet and adds it to the proper queue.
+     * Extracts a WifiPacket from a received ENet packet and adds it to the proper queue.
      * @param packet The RakNet packet that was received.
      */
-    void HandleWifiPackets(const RakNet::Packet* packet);
+    void HandleWifiPackets(const ENetEvent* packet);
 
     /**
      * Extracts RoomInformation and MemberInformation from a received RakNet packet.
      * @param packet The RakNet packet that was received.
      */
-    void HandleRoomInformationPacket(const RakNet::Packet* packet);
+    void HandleRoomInformationPacket(const ENetEvent* packet);
 
     /**
-     * Extracts a MAC Address from a received RakNet packet.
+     * Extracts a MAC Address from a received ENet packet.
      * @param packet The RakNet packet that was received.
      */
-    void HandleJoinPacket(const RakNet::Packet* packet);
+    void HandleJoinPacket(const ENetEvent* packet);
+
+    void SendJoinRequest(const std::string& nickname, const MacAddress& preferred_mac = NoPreferredMac);
 
     std::unique_ptr<std::thread> receive_thread; ///< Thread that receives and dispatches network packets
 
@@ -172,8 +170,6 @@ private:
     std::deque<WifiPacket> data_queue;   ///< List of all received 802.11 frames with type `Data`
     std::mutex beacon_mutex;             ///< Mutex to protect access to the beacons queue.
     std::deque<WifiPacket> beacon_queue; ///< List of all received 802.11 frames with type `Beacon`
-
-    RakNet::SystemAddress server_address; ///< Address of the server we're connected to.
 
     std::mutex network_mutex; ///< Mutex that controls access to the `peer` variable.
 

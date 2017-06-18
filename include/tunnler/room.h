@@ -14,13 +14,17 @@
 #include <vector>
 
 #include "tunnler/tunnler.h"
-
-#include "RakPeerInterface.h"
+#include "enet/enet.h"
 
 const uint16_t DefaultRoomPort = 1234;
 
 // This MAC address is used to generate a 'Nintendo' like Mac address.
 const MacAddress NintendoOUI = { 0x00, 0x1F, 0x32, 0x00, 0x00, 0x00 };
+
+struct JoinRequestData {
+    std::string nickname;
+    MacAddress preferred_mac;
+};
 
 // This is what a server [person creating a server] would use.
 class Room final {
@@ -34,7 +38,7 @@ public:
         std::string nickname; ///< The nickname of the member.
         std::string game_name; //< The current game of the member
         MacAddress mac_address; ///< The assigned mac address of the member.
-        RakNet::AddressOrGUID network_address; ///< The network address of the remote peer.
+        ENetAddress network_address; ///< The network address of the remote peer.
     };
 
     using MemberList = std::vector<Member>;
@@ -69,7 +73,7 @@ private:
 
     std::mt19937 random_gen; ///< Random number generator. Used for GenerateMacAddress
 
-    RakNet::RakPeerInterface* server = nullptr; ///< RakNet network interface.
+    ENetHost* server = nullptr; ///< RakNet network interface.
 
     /// Thread function that will receive and dispatch messages until the room is destroyed.
     void ServerLoop();
@@ -79,27 +83,27 @@ private:
      * Validates the uniqueness of the username and assigns the MAC address
      * that the client will use for the remainder of the connection.
      */
-    void HandleJoinRequest(const RakNet::Packet* packet);
+    void HandleJoinRequest(const ENetEvent* event);
 
     /**
      * Adds the sender information to a chat message and broadcasts this packet
      * to all members including the sender.
      * @param packet The packet containing the message
      */
-    void HandleChatPacket(const RakNet::Packet* packet);
+    void HandleChatPacket(const ENetEvent* packet);
 
     /**
      * Sends the information about the room, along with the list of members
      * to every connected client in the room.
      * The packet has the structure:
      * <MessageID>ID_ROOM_INFORMATION
-     * <RakString> room_name
+     * <String> room_name
      * <uint32_t> member_slots: The max number of clients allowed in this room
      * <uint32_t> num_members: the number of currently joined clients
      * This is followed by the following three values for each member:
-     * <RakString> nickname of that member
+     * <String> nickname of that member
      * <MacAddress> mac_address of that member
-     * <RakString> game_name of that member
+     * <String> game_name of that member
      */
     void BroadcastRoomInformation();
 
@@ -122,22 +126,22 @@ private:
     /**
      * Sends a ID_ROOM_NAME_COLLISION message telling the client that the name is invalid.
      */
-    void SendNameCollision(RakNet::AddressOrGUID client);
+    void SendNameCollision(ENetPeer* client);
 
     /**
      * Sends a ID_ROOM_MAC_COLLISION message telling the client that the MAC is invalid.
      */
-    void SendMacCollision(RakNet::AddressOrGUID client);
+    void SendMacCollision(ENetPeer* client);
 
     /**
      * Removes the client from the members list if it was in it and announces the change
      * to all other clients.
      */
-    void HandleClientDisconnection(RakNet::AddressOrGUID client);
+    void HandleClientDisconnection(ENetPeer* client);
 
     /**
      * Notifies the member that its connection attempt was successful,
      * and it is now part of the room.
      */
-    void SendJoinSuccess(const Member& member);
+    void SendJoinSuccess(ENetPeer* client);
 };

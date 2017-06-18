@@ -5,6 +5,7 @@
 #include <mutex>
 #include <thread>
 
+#include "tunnler/bytestream.h"
 #include "tunnler/tunnler.h"
 #include "tunnler/room.h"
 #include "tunnler/room_member.h"
@@ -12,11 +13,9 @@
 
 #include "tunnler/assert.h"
 
-#include "BitStream.h"
-#include "RakNetTypes.h"
 
 RoomMember::RoomMember() {
-    peer = RakNet::RakPeerInterface::GetInstance();
+    client = enet_host_create(NULL,1,1,0,0);
 }
 
 RoomMember::~RoomMember() {
@@ -24,23 +23,22 @@ RoomMember::~RoomMember() {
     if (receive_thread) {
         receive_thread->join();
     }
-    peer->Shutdown(300);
-    RakNet::RakPeerInterface::DestroyInstance(peer);
+    enet_host_destroy(client);
 }
 
-void RoomMember::HandleChatPacket(const RakNet::Packet* packet) {
-    RakNet::BitStream stream(packet->data, packet->length, false);
+void RoomMember::HandleChatPacket(const ENetEvent* event) {
+    ByteStream stream(event->packet->data, event->packet->dataLength);
 
     // Ignore the first byte, which is the message id.
-    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+    stream.IgnoreBytes(sizeof(MessageID));
 
     ChatEntry chat_entry{};
-    RakNet::RakString nickname;
+    std::string nickname;
     stream.Read(nickname);
-    chat_entry.nickname.assign(nickname.C_String(), nickname.GetLength());
-    RakNet::RakString message;
+    chat_entry.nickname.assign(nickname.c_str(), nickname.length());
+    std::string message;
     stream.Read(message);
-    chat_entry.message.assign(message.C_String(),message.GetLength());
+    chat_entry.message.assign(message.c_str(),message.length());
 
     {
         std::lock_guard<std::mutex> lock(chat_mutex);
@@ -48,7 +46,7 @@ void RoomMember::HandleChatPacket(const RakNet::Packet* packet) {
     }
 }
 
-void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
+void RoomMember::HandleWifiPackets(const ENetEvent* event) {
     WifiPacket wifi_packet{};
     
     auto EmplaceBackAndCheckSize = [&](std::deque<WifiPacket>& queue, size_t max_size) {
@@ -59,10 +57,10 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
         }
     };
 
-    RakNet::BitStream stream(packet->data, packet->length, false);
+    ByteStream stream(event->packet->data, event->packet->dataLength);
 
     // Ignore the first byte, which is the message id.
-    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+    stream.IgnoreBytes(sizeof(MessageID));
 
     // Parse the WifiPacket from the BitStream
     uint8_t frame_type;
@@ -71,14 +69,14 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
 
     wifi_packet.type = type;
     stream.Read(wifi_packet.channel);
-    stream.Read(wifi_packet.transmitter_address);
-    stream.Read(wifi_packet.destination_address);
+    stream.Read(static_cast<unsigned char*>(wifi_packet.transmitter_address.data()), sizeof(MacAddress));
+    stream.Read(static_cast<unsigned char*>(wifi_packet.destination_address.data()), sizeof(MacAddress));
 
     uint32_t data_length;
     stream.Read(data_length);
 
     std::vector<uint8_t> data(data_length);
-    stream.Read(reinterpret_cast<char*>(data.data()), data_length);
+    stream.Read(reinterpret_cast<unsigned char*>(data.data()), data_length);
 
     wifi_packet.data = std::move(data);
 
@@ -91,15 +89,15 @@ void RoomMember::HandleWifiPackets(const RakNet::Packet* packet) {
     }
 }
 
-void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
-    RakNet::BitStream stream(packet->data, packet->length, false);
+void RoomMember::HandleRoomInformationPacket(const ENetEvent* event) {
+    ByteStream stream(event->packet->data, event->packet->dataLength);
 
     // Ignore the first byte, which is the message id.
-    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+    stream.IgnoreBytes(sizeof(MessageID));
 
-    RakNet::RakString room_name;
+    std::string room_name;
     stream.Read(room_name);
-    room_information.name.assign(room_name.C_String(), room_name.GetLength());
+    room_information.name.assign(room_name.c_str(), room_name.length());
     stream.Read(room_information.member_slots);
 
     uint32_t num_members;
@@ -107,26 +105,26 @@ void RoomMember::HandleRoomInformationPacket(const RakNet::Packet* packet) {
     member_information.resize(num_members);
     
     for (auto& member : member_information) {
-        RakNet::RakString nickname;
+        std::string nickname;
         stream.Read(nickname);
-        member.nickname.assign(nickname.C_String(), nickname.GetLength());
+        member.nickname.assign(nickname.c_str(), nickname.length());
 
-        stream.Read(member.mac_address);
+        stream.Read(member.mac_address.data(), sizeof(MacAddress));
 
-        RakNet::RakString game_name;
+        std::string game_name;
         stream.Read(game_name);
-        member.game_name.assign(game_name.C_String(), game_name.GetLength());
+        member.game_name.assign(game_name.c_str(), game_name.length());
     }
 }
 
-void RoomMember::HandleJoinPacket(const RakNet::Packet* packet) {
-    RakNet::BitStream stream(packet->data, packet->length, false);
+void RoomMember::HandleJoinPacket(const ENetEvent* event) {
+    ByteStream stream(event->packet->data, event->packet->dataLength);
 
     // Ignore the first byte, which is the message id.
-    stream.IgnoreBytes(sizeof(RakNet::MessageID));
+    stream.IgnoreBytes(sizeof(MessageID));
 
     //Parse the MAC Address from the BitStream
-    stream.Read(mac_address);
+    stream.Read(mac_address.data(), sizeof(MacAddress));
 }
 
 std::deque<RoomMember::ChatEntry> RoomMember::PopChatEntries() {
@@ -165,27 +163,30 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
 }
 
 void RoomMember::SendChatMessage(const std::string& message) {
-    RakNet::BitStream stream;
+    ByteStream stream;
 
-    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_CHAT));
-    RakNet::RakString sendable_message = message.c_str();
-    stream.Write(sendable_message);
+    stream.Write(static_cast<MessageID>(ID_ROOM_CHAT));
+    stream.Write(message);
 
-    peer->Send(&stream, LOW_PRIORITY, RELIABLE_ORDERED, 0, server_address, false);
+    ENetPacket * packet = enet_packet_create(stream.GetData(), stream.Size(),  ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(server, 0, packet);
+    enet_host_flush(client);
 }
 
 void RoomMember::SendWifiPacket(const WifiPacket& wifi_packet) {
-    RakNet::BitStream stream;
+    ByteStream stream;
 
-    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_WIFI_PACKET));
+    stream.Write(static_cast<MessageID>(ID_ROOM_WIFI_PACKET));
     stream.Write(static_cast<uint8_t>(wifi_packet.type));
     stream.Write(wifi_packet.channel);
-    stream.Write(wifi_packet.transmitter_address);
-    stream.Write(wifi_packet.destination_address);
+    stream.Write(wifi_packet.transmitter_address.data(), sizeof(MacAddress));
+    stream.Write(wifi_packet.destination_address.data(), sizeof(MacAddress));
     stream.Write(static_cast<uint32_t>(wifi_packet.data.size()));
-    stream.Write((char*)wifi_packet.data.data(), wifi_packet.data.size());
+    stream.Write((unsigned char*)wifi_packet.data.data(), wifi_packet.data.size());
 
-    peer->Send(&stream, HIGH_PRIORITY, RELIABLE, 0, server_address, false);
+    ENetPacket * packet = enet_packet_create(stream.GetData(), stream.Size(),  ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(server, 0, packet);
+    enet_host_flush(client);
 }
 
 /**
@@ -193,15 +194,16 @@ void RoomMember::SendWifiPacket(const WifiPacket& wifi_packet) {
  * @params nickname The desired nickname.
  * @params preferred_mac The preferred MAC address to use in the room, an all-zero MAC address tells the server to assign one for us.
  */
-static void SendJoinRequest(RakNet::RakPeerInterface* peer, const std::string& nickname, const MacAddress& preferred_mac = NoPreferredMac) {
-    RakNet::BitStream stream;
+void RoomMember::SendJoinRequest(const std::string& nickname, const MacAddress& preferred_mac) {
+    ByteStream stream;
 
-    RakNet::RakString nick = nickname.c_str();
-    stream.Write(static_cast<RakNet::MessageID>(ID_ROOM_JOIN_REQUEST));
-    stream.Write(nick);
-    stream.Write(preferred_mac);
+    stream.Write(static_cast<MessageID>(ID_ROOM_JOIN_REQUEST));
+    stream.Write(nickname);
+    stream.Write(preferred_mac.data(), sizeof(MacAddress));
 
-    peer->Send(&stream, HIGH_PRIORITY, RELIABLE_ORDERED, 0, RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+    ENetPacket * packet = enet_packet_create(stream.GetData(), stream.Size(),  ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(server, 0, packet);
+    enet_host_flush(client);
 }
 
 void RoomMember::ReceiveLoop() {
@@ -209,75 +211,59 @@ void RoomMember::ReceiveLoop() {
     while (IsConnected()) {
         std::lock_guard<std::mutex> lock(network_mutex);
 
-        RakNet::Packet* packet = nullptr;
-        while (packet = peer->Receive()) {
-            switch (packet->data[0]) {
-            case ID_ROOM_CHAT:
-                HandleChatPacket(packet);
+        ENetEvent* event = nullptr;
+        while (enet_host_service(client, event, 1000) > 0) {
+            switch (event->type) {
+            case ENET_EVENT_TYPE_CONNECT:
+                SendJoinRequest(nickname);
                 break;
-            case ID_ROOM_WIFI_PACKET:
-                HandleWifiPackets(packet);
-                break;
-            case ID_ROOM_INFORMATION:
-                HandleRoomInformationPacket(packet);
-                break;
-            case ID_ROOM_NAME_COLLISION:
-                state = State::NameCollision;
-                peer->Shutdown(300);
-                break;
-            case ID_ROOM_MAC_COLLISION:
-                state = State::MacCollision;
-                peer->Shutdown(300);
-                break;
-            case ID_ROOM_JOIN_SUCCESS:
-                // The join request was successful, we are now in the room.
-                // If we joined successfully, there must be at least one client in the room: us.
-                ASSERT_MSG(GetMemberInformation().size() > 0, "We have not yet received member information.");
-                HandleJoinPacket(packet);    // Get the MAC Address for the client
-                state = State::Joined;
-                break;
-            case ID_DISCONNECTION_NOTIFICATION:
-                // Connection lost normally
-                state = State::Idle;
-                peer->Shutdown(300);
-                break;
-            case ID_INCOMPATIBLE_PROTOCOL_VERSION:
-                state = State::WrongVersion;
-                peer->Shutdown(300);
-                break;
-            case ID_CONNECTION_ATTEMPT_FAILED:
-                state = State::Error;
-                peer->Shutdown(300);
-                break;
-            case ID_NO_FREE_INCOMING_CONNECTIONS:
-                state = State::RoomFull;
-                peer->Shutdown(300);
-                break;
-            case ID_CONNECTION_LOST:
-                // Couldn't deliver a reliable packet, the other system was abnormally terminated
-                state = State::LostConnection;
-                peer->Shutdown(300);
-                break;
-            case ID_CONNECTION_REQUEST_ACCEPTED:
-                // Update the server address with the address of the sender of this packet.
-                server_address = packet->systemAddress;
-                SendJoinRequest(peer, nickname);
-                break;
-            default:
+            case ENET_EVENT_TYPE_RECEIVE:
+                switch (event->packet->data[0]) {
+                case ID_ROOM_CHAT:
+                    HandleChatPacket(event);
+                    break;
+                case ID_ROOM_WIFI_PACKET:
+                    HandleWifiPackets(event);
+                    break;
+                case ID_ROOM_INFORMATION:
+                    HandleRoomInformationPacket(event);
+                    break;
+                case ID_ROOM_NAME_COLLISION:
+                    state = State::NameCollision;
+                    break;
+                case ID_ROOM_MAC_COLLISION:
+                    state = State::MacCollision;
+                    break;
+                case ID_ROOM_JOIN_SUCCESS:
+                    // The join request was successful, we are now in the room.
+                    // If we joined successfully, there must be at least one client in the room: us.
+                    ASSERT_MSG(GetMemberInformation().size() > 0, "We have not yet received member information.");
+                    HandleJoinPacket(event);    // Get the MAC Address for the client
+                    state = State::Joined;
+                    break;
+                default:
+                    break;
+                }
+                enet_packet_destroy (event->packet);
+            case ENET_EVENT_TYPE_DISCONNECT:
+                if(IsConnected())
+                    state = State::LostConnection;
+                return;
                 break;
             }
-
-            peer->DeallocatePacket(packet);
         }
     }
 };
 
 void RoomMember::Join(const std::string& nickname, const std::string& server, uint16_t server_port, uint16_t client_port) {
-    RakNet::SocketDescriptor socket(client_port, 0);
-    peer->Startup(1, &socket, 1);
 
-    RakNet::ConnectionAttemptResult result = peer->Connect(server.c_str(), server_port, nullptr, 0);
-    if (result != RakNet::CONNECTION_ATTEMPT_STARTED) {
+    ENetAddress address;
+    enet_address_set_host(&address, server.c_str());
+    address.port = server_port;
+
+    this->server = enet_host_connect(client, &address, 1, 0);
+
+    if (this->server == nullptr) {
         state = State::Error;
         return;
     }
@@ -298,10 +284,11 @@ void RoomMember::Leave() {
 
     {
         std::lock_guard<std::mutex> lock(network_mutex);
-        peer->Shutdown(300);
+        enet_peer_disconnect(server, 0);
         state = State::Idle;
     }
 
     receive_thread->join();
     receive_thread.reset();
+    enet_peer_reset(server);
 }
