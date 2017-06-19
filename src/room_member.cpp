@@ -5,13 +5,12 @@
 #include <mutex>
 #include <thread>
 
+#include "tunnler/assert.h"
 #include "tunnler/bytestream.h"
 #include "tunnler/tunnler.h"
 #include "tunnler/room.h"
 #include "tunnler/room_member.h"
 #include "tunnler/room_message_types.h"
-
-#include "tunnler/assert.h"
 
 
 RoomMember::RoomMember() {
@@ -47,6 +46,8 @@ void RoomMember::HandleChatPacket(const ENetEvent* event) {
 }
 
 void RoomMember::HandleWifiPackets(const ENetEvent* event) {
+    Invoke(EventType::OnMessagesReceived);
+
     WifiPacket wifi_packet{};
     
     auto EmplaceBackAndCheckSize = [&](std::deque<WifiPacket>& queue, size_t max_size) {
@@ -80,13 +81,24 @@ void RoomMember::HandleWifiPackets(const ENetEvent* event) {
 
     wifi_packet.data = std::move(data);
 
-    if (type == WifiPacket::PacketType::Beacon) {
+    switch (type) {
+    case WifiPacket::PacketType::Beacon: {
         std::lock_guard<std::mutex> lock(beacon_mutex);
         EmplaceBackAndCheckSize(beacon_queue, MaxBeaconQueueSize);
-    } else {  // For now we will treat all non-beacons as data packets
+        }
+        break;
+    case WifiPacket::PacketType::Data: {
         std::lock_guard<std::mutex> lock(data_mutex);
-        EmplaceBackAndCheckSize(data_queue, MaxDataQueueSize);
+        EmplaceBackAndCheckSize(data_queue, MaxBeaconQueueSize);
+        }
+        break;
+    case WifiPacket::PacketType::Management: {
+        std::lock_guard<std::mutex> lock(management_mutex);
+        EmplaceBackAndCheckSize(management_queue, MaxManagementQueueSize);
+        }
+        break;
     }
+    Invoke(EventType::OnFramesReceived);
 }
 
 void RoomMember::HandleRoomInformationPacket(const ENetEvent* event) {
@@ -115,6 +127,7 @@ void RoomMember::HandleRoomInformationPacket(const ENetEvent* event) {
         stream.Read(game_name);
         member.game_name.assign(game_name.c_str(), game_name.length());
     }
+    Invoke(EventType::OnRoomChanged);
 }
 
 void RoomMember::HandleJoinPacket(const ENetEvent* event) {
@@ -153,12 +166,19 @@ std::deque<WifiPacket> RoomMember::PopWifiPackets(WifiPacket::PacketType type, c
         return result_queue;
     };
 
-    if (type == WifiPacket::PacketType::Beacon) {
+    switch (type) {
+    case WifiPacket::PacketType::Beacon: {
         std::lock_guard<std::mutex> lock(beacon_mutex);
         return FilterAndPopPackets(beacon_queue);
-    } else {  // For now we will treat all non-beacons as data packets
+        }
+    case WifiPacket::PacketType::Data: {
         std::lock_guard<std::mutex> lock(data_mutex);
         return FilterAndPopPackets(data_queue);
+        }
+    case WifiPacket::PacketType::Management: {
+        std::lock_guard<std::mutex> lock(management_mutex);
+        return FilterAndPopPackets(management_queue);
+        }
     }
 }
 
@@ -189,6 +209,32 @@ void RoomMember::SendWifiPacket(const WifiPacket& wifi_packet) {
     enet_host_flush(client);
 }
 
+RoomMember::Connection RoomMember::Connect(std::function<void()> callback, EventType event_type) {
+    std::lock_guard<std::mutex> lock(callback_mutex);
+    RoomMember::Connection connection;
+    connection.event_type = event_type;
+    connection.callback =  std::make_shared<std::function<void()> >(callback);
+    callback_map[event_type].insert(connection.callback);
+    return connection;
+}
+
+void RoomMember::Disconnect(Connection connection) {
+    std::lock_guard<std::mutex> lock(callback_mutex);
+    callback_map[connection.event_type].erase(connection.callback);
+}
+
+void RoomMember::Invoke(EventType event_type)
+{
+    CallbackSet callbacks;
+    {
+        std::lock_guard<std::mutex> lock(callback_mutex);
+        callbacks = callback_map[event_type];
+        
+    }
+    for(auto const& callback: callbacks)
+        (*callback)();
+}
+
 /**
  * Sends a request to the server, asking for permission to join a room with the specified nickname and preferred mac.
  * @params nickname The desired nickname.
@@ -209,6 +255,7 @@ void RoomMember::SendJoinRequest(const std::string& nickname, const MacAddress& 
 void RoomMember::ReceiveLoop() {
     // Receive packets while the connection is open
     while (IsConnected()) {
+        std::this_thread::sleep_for(sleep_time);
         std::lock_guard<std::mutex> lock(network_mutex);
 
         ENetEvent* event = nullptr;
@@ -249,7 +296,6 @@ void RoomMember::ReceiveLoop() {
                 if(IsConnected())
                     state = State::LostConnection;
                 return;
-                break;
             }
         }
     }
@@ -265,6 +311,7 @@ void RoomMember::Join(const std::string& nickname, const std::string& server, ui
 
     if (this->server == nullptr) {
         state = State::Error;
+        Invoke(EventType::OnStateChanged);
         return;
     }
 
@@ -286,6 +333,7 @@ void RoomMember::Leave() {
         std::lock_guard<std::mutex> lock(network_mutex);
         enet_peer_disconnect(server, 0);
         state = State::Idle;
+        Invoke(EventType::OnStateChanged);
     }
 
     receive_thread->join();

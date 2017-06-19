@@ -90,7 +90,7 @@ private:
      * to all members including the sender.
      * @param packet The packet containing the message
      */
-    void HandleChatPacket(const ENetEvent* packet);
+    void HandleChatPacket(const ENetEvent* event);
 
     /**
      * Sends the information about the room, along with the list of members
