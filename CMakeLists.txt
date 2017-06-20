@@ -11,13 +11,13 @@ add_subdirectory(${ENET_PREFIX})
 include_directories("${PROJECT_SOURCE_DIR}/include")
 
 set(SRCS
-    src/bytestream.cpp
+    src/packet.cpp
     src/room.cpp
     src/room_member.cpp
     )
 
 set(HEADERS
-    include/tunnler/bytestream.h
+    include/tunnler/packet.h
     include/tunnler/room.h
     include/tunnler/room_member.h
     include/tunnler/room_message_types.h

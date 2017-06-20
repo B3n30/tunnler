@@ -73,7 +73,7 @@ private:
 
     std::mt19937 random_gen; ///< Random number generator. Used for GenerateMacAddress
 
-    ENetHost* server = nullptr; ///< RakNet network interface.
+    ENetHost* server = nullptr; ///< network interface.
 
     /// Thread function that will receive and dispatch messages until the room is destroyed.
     void ServerLoop();
